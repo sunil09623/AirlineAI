@@ -19,13 +19,19 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from openhands.sdk import LLMConvertibleEvent
-
-from airshop.agent.local import AgentConfig, build_conversation
-from airshop.ndc.catalog import MessageCatalog, review_update
+# Offline must be enforced before importing the SDK: the SDK configures its
+# telemetry exporter at import time, so clearing the environment afterwards is
+# too late to stop it from being initialised.
 from airshop.offline import enforce_offline
-from airshop.store import TransactionStore
-from airshop.tools.ndc import (
+
+enforce_offline()
+
+from openhands.sdk import LLMConvertibleEvent  # noqa: E402
+
+from airshop.agent.local import AgentConfig, build_conversation  # noqa: E402
+from airshop.ndc.catalog import MessageCatalog, review_update  # noqa: E402
+from airshop.store import TransactionStore  # noqa: E402
+from airshop.tools.ndc import (  # noqa: E402
     AirShoppingQueryAction,
     AirShoppingTool,
     NdcReferenceTool,

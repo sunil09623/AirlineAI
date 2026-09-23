@@ -11,13 +11,19 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from openhands.sdk import LLM, Agent, Conversation, Tool
-from openhands.sdk.context.agent_context import AgentContext
-from pydantic import SecretStr
-
+# Import-time ordering matters: the SDK configures its telemetry exporter when
+# openhands.sdk is first imported, so the environment must be sanitised before
+# that happens, not later.
 from airshop.offline import assert_local_model, enforce_offline
-from airshop.store import TransactionStore
-from airshop.tools.ndc import NDC_TOOL_CLASSES, build_ndc_tools  # noqa: F401
+
+enforce_offline()
+
+from openhands.sdk import LLM, Agent, Conversation, Tool  # noqa: E402
+from openhands.sdk.context.agent_context import AgentContext  # noqa: E402
+from pydantic import SecretStr  # noqa: E402
+
+from airshop.store import TransactionStore  # noqa: E402
+from airshop.tools.ndc import NDC_TOOL_CLASSES, build_ndc_tools  # noqa: E402,F401
 
 SYSTEM_PROMPT_SUFFIX = """
 You are an airline distribution agent for IATA NDC flight shopping, running fully
