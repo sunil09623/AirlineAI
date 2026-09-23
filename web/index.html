@@ -119,6 +119,32 @@
     border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer;
   }
   .suggestions button:hover { color: var(--text); }
+  details.reveal {
+    margin-top: 8px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel-2); padding: 4px 12px;
+  }
+  details.reveal > summary {
+    cursor: pointer; padding: 8px 0; font-size: 12.5px; color: var(--accent);
+    list-style: none;
+  }
+  details.reveal > summary::-webkit-details-marker { display: none; }
+  details.reveal > summary::before { content: "▸ "; }
+  details.reveal[open] > summary::before { content: "▾ "; }
+  details.reveal table { margin-bottom: 10px; }
+  .group {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2);
+    margin-bottom: 8px; padding: 4px 12px;
+  }
+  .group > summary {
+    cursor: pointer; padding: 9px 0; list-style: none;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .group > summary::-webkit-details-marker { display: none; }
+  .group > summary::before { content: "▸"; color: var(--muted); font-size: 11px; }
+  .group[open] > summary::before { content: "▾"; }
+  .group .gname { font-weight: 600; }
+  .group .gcount { color: var(--muted); font-size: 12px; }
+  .group table { margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -178,29 +204,44 @@
       <h2>Counts</h2>
       <div class="counts" id="counts"></div>
 
-      <h2>Entities missing or extra</h2>
-      <table>
-        <thead><tr><th>Change</th><th>Entity</th><th>ID</th><th>Details</th></tr></thead>
-        <tbody id="entity-rows"></tbody>
-      </table>
+      <h2>Entities</h2>
+      <p class="status">
+        Grouped by entity type. Press a group to expand every identifier.
+      </p>
+      <div id="entity-groups"></div>
 
       <h2>Node paths</h2>
-      <table>
-        <thead><tr><th>Change</th><th>Path</th><th>Count</th></tr></thead>
-        <tbody id="node-rows"></tbody>
-      </table>
+      <p class="status" id="node-summary"></p>
+      <details class="reveal">
+        <summary>Show node paths</summary>
+        <table>
+          <thead><tr><th>Change</th><th>Path</th><th>Count</th></tr></thead>
+          <tbody id="node-rows"></tbody>
+        </table>
+      </details>
 
       <h2>Value changes</h2>
-      <table>
-        <thead><tr><th>Path</th><th>No longer present</th><th>Newly present</th></tr></thead>
-        <tbody id="value-rows"></tbody>
-      </table>
+      <p class="status" id="value-summary"></p>
+      <details class="reveal">
+        <summary>Show value changes</summary>
+        <table>
+          <thead><tr><th>Path</th><th>No longer present</th><th>Newly present</th></tr></thead>
+          <tbody id="value-rows"></tbody>
+        </table>
+      </details>
 
-      <h2>Session metadata <span class="status">(regenerated each response — not content changes)</span></h2>
-      <table>
-        <thead><tr><th>Path</th><th>Was</th><th>Now</th></tr></thead>
-        <tbody id="session-rows"></tbody>
-      </table>
+      <h2>Session metadata</h2>
+      <p class="status">
+        Timestamps and transaction IDs are regenerated on every response, so they
+        are listed here rather than counted as content changes.
+      </p>
+      <details class="reveal" id="session-details">
+        <summary>Show session metadata</summary>
+        <table>
+          <thead><tr><th>Path</th><th>Was</th><th>Now</th></tr></thead>
+          <tbody id="session-rows"></tbody>
+        </table>
+      </details>
 
       <h2>Full report</h2>
       <pre id="full-report"></pre>
@@ -409,6 +450,61 @@
     }, 0);
   });
 
+  // Entity changes grouped by type, each group collapsible. A real release pair
+  // can involve hundreds of offers; one row per identifier is unreadable, so the
+  // summary carries the count and the full list is one click away.
+  function renderEntityGroups(report) {
+    var groups = [];
+
+    function bucket(entities, kind, label) {
+      if (!entities.length) return;
+      var counts = {};
+      entities.forEach(function (e) { counts[e.entity] = (counts[e.entity] || 0) + 1; });
+      Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; })
+        .forEach(function (name) {
+          groups.push({ entity: name, kind: kind, label: label, items: entities.filter(function (e) {
+            return e.entity === name;
+          }) });
+        });
+    }
+
+    bucket(report.entities_removed, "missing", "MISSING from the new response");
+    bucket(report.entities_added, "extra", "NEW in the new response");
+    bucket(report.entities_modified, "modified", "CHANGED under the same identifier");
+
+    if (!groups.length) {
+      $("#entity-groups").innerHTML =
+        '<p class="status">No entity-level differences.</p>';
+      return;
+    }
+
+    $("#entity-groups").innerHTML = groups.map(function (g, index) {
+      var rows = g.items.map(function (e) {
+        if (g.kind === "modified") {
+          var detail = (e.missing || []).map(function (m) {
+            return '<div><span class="tag missing">was</span> <code>' + esc(m) + "</code></div>";
+          }).concat((e.extra || []).map(function (x) {
+            return '<div><span class="tag extra">now</span> <code>' + esc(x) + "</code></div>";
+          })).join("");
+          return "<tr><td><code>" + esc(e.key) + "</code></td><td>" + detail + "</td></tr>";
+        }
+        return "<tr><td><code>" + esc(e.key) + "</code></td><td>" +
+          (g.kind === "missing" ? "removed from the new response" : "newly added") +
+          "</td></tr>";
+      }).join("");
+
+      var table = g.kind === "modified"
+        ? '<table><thead><tr><th>ID</th><th>Details</th></tr></thead><tbody>' + rows + "</tbody></table>"
+        : '<table><thead><tr><th>ID</th><th>Change</th></tr></thead><tbody>' + rows + "</tbody></table>";
+
+      return '<details class="group" id="group-' + index + '">' +
+        '<summary><span class="tag ' + g.kind + '">' + g.label + '</span>' +
+        '<span class="gname">' + esc(g.entity) + "</span>" +
+        '<span class="gcount">' + g.items.length + (g.items.length === 1 ? " item" : " items") +
+        "</span></summary>" + table + "</details>";
+    }).join("");
+  }
+
   function render(report, baseSummary, newSummary, narrativeText, reviewRender, tripChange) {
     $("#review-output").classList.remove("hidden");
     $("#narrative").textContent = narrativeText;
@@ -431,26 +527,15 @@
       return '<span class="chip">' + esc(k) + ': <b>' + b + " → " + n + "</b>" + arrow + "</span>";
     }).join("");
 
-    var rows = [];
-    report.entities_removed.forEach(function (e) {
-      rows.push('<tr><td><span class="tag missing">MISSING</span></td><td>' + esc(e.entity) +
-        '</td><td><code>' + esc(e.key) + "</code></td><td>removed from the new response</td></tr>");
-    });
-    report.entities_added.forEach(function (e) {
-      rows.push('<tr><td><span class="tag extra">EXTRA</span></td><td>' + esc(e.entity) +
-        '</td><td><code>' + esc(e.key) + "</code></td><td>newly added</td></tr>");
-    });
-    report.entities_modified.forEach(function (e) {
-      var detail = (e.missing || []).map(function (m) {
-        return '<div><span class="tag missing">was</span> <code>' + esc(m) + "</code></div>";
-      }).concat((e.extra || []).map(function (x) {
-        return '<div><span class="tag extra">now</span> <code>' + esc(x) + "</code></div>";
-      })).join("");
-      rows.push('<tr><td><span class="tag modified">CHANGED</span></td><td>' + esc(e.entity) +
-        '</td><td><code>' + esc(e.key) + "</code></td><td>" + detail + "</td></tr>");
-    });
-    $("#entity-rows").innerHTML = rows.join("") ||
-      '<tr><td colspan="4" class="status">No entity-level differences.</td></tr>';
+    renderEntityGroups(report);
+
+    // Node paths: show the count up front, full list on demand.
+    var missingCount = Object.keys(report.missing_nodes).length;
+    var extraCount = Object.keys(report.extra_nodes).length;
+    $("#node-summary").textContent =
+      extraCount || missingCount
+        ? extraCount + " new node path(s), " + missingCount + " disappeared."
+        : "No node-path differences.";
 
     var nodeRows = Object.keys(report.missing_nodes).map(function (p) {
       return '<tr><td><span class="tag missing">MISSING</span></td><td><code>' + esc(p) +
@@ -462,6 +547,10 @@
     $("#node-rows").innerHTML = nodeRows.join("") ||
       '<tr><td colspan="3" class="status">No node-path differences.</td></tr>';
 
+    $("#value-summary").textContent = report.value_diffs.length
+      ? report.value_diffs.length + " field(s) changed value."
+      : "No value changes.";
+
     $("#value-rows").innerHTML = report.value_diffs.map(function (v) {
       return "<tr><td><code>" + esc(v.path) + "</code></td><td>" +
         (v.missing_values || []).map(function (x) { return "<code>" + esc(x) + "</code>"; }).join("<br>") +
@@ -471,6 +560,12 @@
     }).join("") || '<tr><td colspan="3" class="status">No value changes.</td></tr>';
 
     var session = report.session_metadata || [];
+    var sessionDetails = $("#session-details");
+    if (!session.length) {
+      sessionDetails.classList.add("hidden");
+    } else {
+      sessionDetails.classList.remove("hidden");
+    }
     $("#session-rows").innerHTML = session.map(function (v) {
       return "<tr><td><code>" + esc(v.path) + "</code></td><td>" +
         (v.missing_values || []).map(function (x) { return "<code>" + esc(x) + "</code>"; }).join("<br>") +

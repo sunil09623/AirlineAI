@@ -160,7 +160,7 @@ check("reordering offers is not a difference", reorderReport.identical, true);
 // --- churning reference-id coverage -------------------------------------- //
 // Real carriers regenerate the tail of each identifier per response. That churn
 // must not be reported as content change, while a genuine addition still is.
-const { churnSuffix, normaliseEntityKeys } = NDC;
+const { churnSuffix, churnPrefix, identifierNormalisation } = NDC;
 
 check(
   "churnSuffix finds the per-response token",
@@ -173,11 +173,39 @@ check(
   Object.keys(
     Object.fromEntries(
       Object.entries(
-        normaliseEntityKeys({ BaggageAllowance: ["Xbga0600210b3be03", "Xbga1900210b3be03"] })
+        identifierNormalisation({
+          "BaggageAllowance\u0000@BaggageAllowanceID": [
+            "Xbga0600210b3be03",
+            "Xbga1900210b3be03",
+          ],
+        })["BaggageAllowance\u0000@BaggageAllowanceID"]
       ).map(([, v]) => [v, true])
     )
   ).length,
   2
+);
+
+// Prefix churn: real carrier offer ids reissue a UUID prefix per response while
+// the trailing ordinal stays stable. This must not read as everything changing.
+check(
+  "churnPrefix finds the regenerated batch id",
+  churnPrefix(["XA67C09C8-37C4-4844-82B2-1", "XA67C09C8-37C4-4844-82B2-2"]),
+  "XA67C09C8-37C4-4844-82B2-"
+);
+check(
+  "churnPrefix ignores plain numeric keys",
+  churnPrefix(["SEG1", "SEG2"]),
+  ""
+);
+check(
+  "prefix normalisation strips to the stable ordinal",
+  identifierNormalisation({
+    "Offer\u0000@OfferID": [
+      "XA67C09C8-37C4-4844-82B2-1",
+      "XA67C09C8-37C4-4844-82B2-2",
+    ],
+  })["Offer\u0000@OfferID"]["XA67C09C8-37C4-4844-82B2-1"],
+  "1"
 );
 
 function churnDoc(suffix, extra) {
@@ -212,6 +240,40 @@ const churnPlusAdd = diffXml(churnA, churnC, "old", "new");
 
 check("pure id churn is not a difference", pureChurn.identical, true);
 check("pure id churn yields no value diffs", pureChurn.value_diffs, []);
+
+// End-to-end prefix churn: two responses whose only difference is a reissued
+// UUID prefix and matching ordinals must read as identical.
+function prefixChurnDoc(prefix) {
+  const offers = [];
+  for (let i = 1; i <= 40; i += 1) {
+    offers.push(
+      `<Offer OfferID="${prefix}-${i}">` +
+        `<OfferItem OfferItemID="${prefix}-${i}-OI1">` +
+        `<Price><TotalAmount CurCode="USD">${400 + i}.00</TotalAmount></Price>` +
+        `</OfferItem></Offer>`
+    );
+  }
+  return `<AirShoppingRS><Response><Offers>${offers.join("")}</Offers></Response></AirShoppingRS>`;
+}
+const prefixA = prefixChurnDoc("XA67C09C8-37C4-4844-82B2");
+const prefixB = prefixChurnDoc("XAA4633E4-E3C1-43D3-9153");
+const prefixReport = diffXml(prefixA, prefixB, "old", "new");
+check("prefix-only churn is not a difference", prefixReport.identical, true);
+check("prefix-only churn yields no entity changes", prefixReport.entities_removed.length, 0);
+check("prefix-only churn yields no value diffs", prefixReport.value_diffs.length, 0);
+
+// A genuinely added offer must still be visible through the prefix change.
+const prefixC = prefixChurnDoc("XAA4633E4-E3C1-43D3-9153").replace(
+  "</Offers>",
+  `<Offer OfferID="XAA4633E4-E3C1-43D3-9153-999"><OfferItem OfferItemID="XAA4633E4-E3C1-43D3-9153-999-OI1"><Price><TotalAmount CurCode="USD">9999.00</TotalAmount></Price></OfferItem></Offer></Offers>`
+);
+const prefixAddReport = diffXml(prefixA, prefixC, "old", "new");
+check(
+  "genuine addition survives prefix churn",
+  prefixAddReport.entities_added.map((e) => e.key).sort(),
+  ["999", "999-OI1"]
+);
+
 check(
   "genuine addition still surfaces after churn is stripped",
   churnPlusAdd.entities_added.map((e) => e.key),

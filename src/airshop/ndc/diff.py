@@ -21,6 +21,7 @@ Two complementary passes:
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -64,6 +65,20 @@ ENTITY_KEYS: dict[str, str] = {
 # are common in ordinary keys (e.g. "SEG1", "SEG2" share nothing; "IT1"... ),
 # so stripping them would be wrong.
 CHURN_SUFFIX_MIN_LEN = 6
+
+# Minimum length of a shared *leading* fragment before it is treated as a
+# regenerated batch identifier. Real payloads look like
+#   XA67C09C8-37C4-4844-82B2-1  ->  XAA4633E4-E3C1-43D3-9153-1
+# where the UUID-shaped prefix is reissued per response and the trailing number
+# is what actually identifies the offer.
+CHURN_PREFIX_MIN_LEN = 12
+
+# A shared prefix containing a UUID is almost certainly a regenerated batch
+# token, so a shorter overlap is still worth stripping there.
+_UUID_RE = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+CHURN_PREFIX_UUID_MIN_LEN = 6
 
 # Fields that are regenerated on every response by definition (transport and
 # session metadata, not business content). Comparing two responses always shows
@@ -243,8 +258,46 @@ class DiffReport:
             "session_metadata": [v.to_dict() for v in self.session_metadata],
         }
 
+    def render_full(self, max_items: int = 1000) -> str:
+        """Every identifier, one per line — for exports and diffing reports.
+
+        :meth:`render` deliberately summarises; this is the exhaustive form.
+        """
+        if self.identical:
+            return (
+                f"No differences: {self.new_label} is structurally identical to "
+                f"{self.base_label}."
+            )
+
+        lines = [f"Comparing {self.base_label} (baseline) vs {self.new_label} (new):"]
+        if self.entities_removed:
+            lines.append(f"\nMISSING entities ({len(self.entities_removed)}):")
+            for e in self.entities_removed[:max_items]:
+                lines.append(f"  - {e.entity} {e.key}")
+        if self.entities_added:
+            lines.append(f"\nEXTRA entities ({len(self.entities_added)}):")
+            for e in self.entities_added[:max_items]:
+                lines.append(f"  + {e.entity} {e.key}")
+        if self.entities_modified:
+            lines.append(
+                f"\nMODIFIED entities ({len(self.entities_modified)}):"
+            )
+            for e in self.entities_modified[:max_items]:
+                lines.append(f"  ~ {e.entity} {e.key}")
+                for m in e.missing[:max_items]:
+                    lines.append(f"      was: {m}")
+                for x in e.extra[:max_items]:
+                    lines.append(f"      now: {x}")
+        return "\n".join(lines)
+
     def render(self, max_items: int = 40) -> str:
-        """Human/LLM-readable summary of the differences."""
+        """Human/LLM-readable summary of the differences.
+
+        Entity changes are grouped by type with counts and a few examples rather
+        than listed one per line: a real release pair can involve hundreds of
+        offers, and 238 near-identical lines bury the information. Use
+        :meth:`render_full` when every identifier is genuinely needed.
+        """
         if self.identical:
             return (
                 f"No differences: {self.new_label} is structurally identical to "
@@ -253,37 +306,63 @@ class DiffReport:
 
         lines = [f"Comparing {self.base_label} (baseline) vs {self.new_label} (new):"]
 
-        if self.entities_removed:
-            lines.append("\nMISSING entities (in baseline, absent from new):")
-            for e in self.entities_removed[:max_items]:
-                lines.append(f"  - {e.entity} {e.key} was removed")
+        def bucket(entities, heading: str) -> None:
+            if not entities:
+                return
+            counts: dict[str, int] = {}
+            examples: dict[str, list[str]] = {}
+            for entity in entities:
+                counts[entity.entity] = counts.get(entity.entity, 0) + 1
+                examples.setdefault(entity.entity, [])
+                if len(examples[entity.entity]) < 3:
+                    examples[entity.entity].append(entity.key)
+            lines.append(heading)
+            for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+                shown = ", ".join(examples[name])
+                extra = (
+                    ""
+                    if count <= len(examples[name])
+                    else f", … (+{count - len(examples[name])} more)"
+                )
+                lines.append(f"  {name}: {count}  (e.g. {shown}{extra})")
 
-        if self.entities_added:
-            lines.append("\nEXTRA entities (new, not in baseline):")
-            for e in self.entities_added[:max_items]:
-                lines.append(f"  - {e.entity} {e.key} was added")
+        bucket(self.entities_removed, "\nMISSING entities (in baseline, absent from new):")
+        bucket(self.entities_added, "\nEXTRA entities (new, not in baseline):")
 
         if self.entities_modified:
-            lines.append("\nMODIFIED entities (same ID, different content):")
-            for e in self.entities_modified[:max_items]:
-                lines.append(f"  - {e.entity} {e.key}:")
-                for m in e.missing[:max_items]:
-                    lines.append(f"      missing: {m}")
-                for x in e.extra[:max_items]:
-                    lines.append(f"      extra:   {x}")
+            # Show what changed for a few, and summarise the rest by field.
+            lines.append(
+                f"\nMODIFIED entities (same identifier, different content): "
+                f"{len(self.entities_modified)} total"
+            )
+            field_counts: dict[str, int] = {}
+            for entity in self.entities_modified:
+                for field in entity.missing:
+                    key = field.split(" = ")[0]
+                    field_counts[key] = field_counts.get(key, 0) + 1
+            for field, count in sorted(
+                field_counts.items(), key=lambda kv: (-kv[1], kv[0])
+            )[:max_items]:
+                lines.append(f"  {field}: changed on {count} entit(ies)")
+            for entity in self.entities_modified[:3]:
+                lines.append(f"  e.g. {entity.entity} {entity.key}:")
+                for m in entity.missing[:4]:
+                    lines.append(f"      was: {m}")
+                for x in entity.extra[:4]:
+                    lines.append(f"      now: {x}")
 
         if self.counts_missing:
-            lines.append("\nMISSING node paths (tag -> count):")
+            lines.append(f"\nMISSING node paths: {len(self.counts_missing)} distinct")
             for path, count in sorted(self.counts_missing.items())[:max_items]:
                 lines.append(f"  - {path} x{count}")
 
         if self.counts_extra:
-            lines.append("\nEXTRA node paths (tag -> count):")
+            lines.append(f"\nEXTRA node paths: {len(self.counts_extra)} distinct")
             for path, count in sorted(self.counts_extra.items())[:max_items]:
                 lines.append(f"  + {path} x{count}")
 
         if self.value_diffs:
-            lines.append("\nVALUE changes (same path, different values):")
+            lines.append(f"\nVALUE changes: {len(self.value_diffs)} field(s)")
             for v in self.value_diffs[:max_items]:
                 for mv in v.missing_values[:10]:
                     lines.append(f"  - {v.path}: {mv!r} no longer present")
@@ -382,20 +461,42 @@ def collect_entity_ids(root: etree._Element) -> dict[str, list[str]]:
     return found
 
 
+def _common_suffix(values: list[str]) -> str:
+    """Longest trailing fragment shared by every value."""
+    if not values:
+        return ""
+    suffix = values[0]
+    for value in values[1:]:
+        while not value.endswith(suffix):
+            suffix = suffix[1:]
+        if not suffix:
+            return ""
+    return suffix
+
+
+def _common_prefix(values: list[str]) -> str:
+    """Longest leading fragment shared by every value."""
+    if not values:
+        return ""
+    prefix = values[0]
+    for value in values[1:]:
+        while not value.startswith(prefix):
+            prefix = prefix[:-1]
+        if not prefix:
+            return ""
+    return prefix
+
+
 def churn_suffix(values: list[str]) -> str:
     """Longest trailing fragment shared by every value, if it looks like a token.
 
-    Carriers regenerate the tail of each identifier on every response (a session
-    token), which would otherwise make every entity look removed-and-added. The
-    shared tail is what identifies that churn; returning it lets the caller strip
-    it.
+    Some carriers regenerate the tail of each identifier on every response, which
+    would otherwise make every entity look removed-and-added.
 
-    The only guard needed is a minimum length: short shared tails are ordinary in
-    real keys (``IT1``/``IT2`` share nothing, but ``AB1``/``CB1`` share ``B1``),
-    so stripping those would corrupt genuine data. Removing a common suffix can
-    never make two distinct values equal — if ``a`` and ``b`` differ somewhere in
-    their retained prefixes then so do ``a - S`` and ``b - S`` — so no separate
-    collision check is required.
+    The guard is a minimum length: short shared tails are ordinary in real keys
+    (``IT1``/``IT2`` share nothing, but ``AB1``/``CB1`` share ``B1``), so
+    stripping those would corrupt genuine data. Removing a common suffix can never
+    make two distinct values equal, so no separate collision check is needed.
     """
     if len(values) < 2:
         return ""
@@ -404,76 +505,167 @@ def churn_suffix(values: list[str]) -> str:
     limit = min(len(v) for v in values) - 1
     if limit < CHURN_SUFFIX_MIN_LEN:
         return ""
-
-    suffix = ""
-    for offset in range(1, limit + 1):
-        candidate = values[0][-offset:]
-        if all(v.endswith(candidate) for v in values):
-            suffix = candidate
-        else:
-            break
-
+    suffix = _common_suffix(values)
+    if len(suffix) > limit:
+        suffix = suffix[len(suffix) - limit :]
     return suffix if len(suffix) >= CHURN_SUFFIX_MIN_LEN else ""
+
+
+def churn_prefix(values: list[str]) -> str:
+    """Longest leading fragment shared by every value, if it looks like a token.
+
+    Offer identifiers are often built as ``<regenerated-batch-uuid>-<ordinal>``:
+    a fresh UUID per response with a stable ordinal, e.g.
+    ``XA67C09C8-37C4-4844-82B2-1`` becoming ``XAA4633E4-E3C1-43D3-9153-1``. With
+    the whole prefix reissued, every offer appears removed and re-added, which
+    buried the real differences in hundreds of noise lines.
+
+    Stripping the shared prefix is safe against accidental collisions: the stable
+    remainder is never empty and distinct ordinals stay distinct. The guards are
+    length-based, because plain numeric identifiers such as ``SEG1``/``SEG2``
+    share ``SEG`` and must not be touched.
+    """
+    if len(values) < 2:
+        return ""
+    limit = min(len(v) for v in values) - 1
+    prefix = _common_prefix(values)
+    if not prefix:
+        return ""
+    if len(prefix) > limit:
+        prefix = prefix[:limit]
+
+    looks_like_uuid = bool(_UUID_RE.search(prefix))
+    threshold = (
+        CHURN_PREFIX_UUID_MIN_LEN if looks_like_uuid else CHURN_PREFIX_MIN_LEN
+    )
+    return prefix if len(prefix) >= threshold else ""
 
 
 def normalise_entity_keys(
     ids: dict[str, list[str]],
 ) -> dict[str, str]:
-    """Map each raw id to its churn-stripped form, per entity type."""
+    """Map each raw id to its churn-stripped form, per entity type.
+
+    Handles both directions: a regenerated prefix (UUID-style batch ids) and a
+    regenerated suffix (session tokens). At most one is applied per entity type,
+    since a value cannot meaningfully have both stripped without risking collapse.
+    """
     mapping: dict[str, str] = {}
     for values in ids.values():
+        prefix = churn_prefix(values)
+        if prefix:
+            for value in values:
+                mapping[value] = value[len(prefix) :]
+            continue
         suffix = churn_suffix(values)
         for value in values:
             mapping[value] = value[: len(value) - len(suffix)] if suffix else value
     return mapping
 
 
-def identifier_suffixes(ids: dict[str, list[str]]) -> dict[str, set[str]]:
-    """Map a tag-path *suffix* to the raw id values that identify it there.
+def _is_identifier_name(name: str) -> bool:
+    """Whether an attribute/child name looks like an identifier.
 
-    ``struct`` values are full tag paths such as
-    ``AirShoppingRS/DataLists/FareList/FareGroup/@ListKey``, while the entity map
-    is keyed by bare tag, so match on the trailing segment. Both the attribute
-    form (``@ListKey``) and the child-element form (``OfferID``) are covered,
-    because the same logical key appears both ways across carriers.
+    Carriers attach several identifier-like values to one element — an Offer may
+    carry ``@OfferID`` while its Fare carries ``@ListKey`` and ``FareCode`` — and
+    any of them can be regenerated per response. Matching on the name rather than
+    on a fixed list means a new ID-bearing field cannot silently reintroduce the
+    churn noise.
     """
-    suffixes: dict[str, set[str]] = {}
-    for tag, values in ids.items():
-        spec = ENTITY_KEYS[tag]
-        name = spec[1:] if spec.startswith("@") else spec
-        for suffix in (f"{tag}/@{name}", f"{tag}/{name}"):
-            suffixes.setdefault(suffix, set()).update(values)
-    return suffixes
+    lowered = name.lower()
+    return (
+        lowered.endswith("id")
+        or lowered.endswith("key")
+        or lowered.endswith("ref")
+        or lowered.endswith("reference")
+        or lowered.endswith("token")
+        or lowered.endswith("uuid")
+        or lowered.endswith("guid")
+    )
 
 
-def apply_id_normalisation(
+def collect_identifier_values(root: etree._Element) -> dict[tuple[str, str], list[str]]:
+    """Every identifier-like value, grouped by (element tag, field name).
+
+    Covers both attributes (``Fare``/``@ListKey``) and child elements
+    (``Offer``/``OfferID``), so churn can be detected per group independently of
+    whether the field happens to be the entity's declared identity.
+    """
+    groups: dict[tuple[str, str], list[str]] = {}
+    for element in root.iter():
+        if not isinstance(element.tag, str):
+            continue
+        tag = localname(element.tag)
+        for attr_name, attr_value in element.attrib.items():
+            name = localname(attr_name)
+            value = (attr_value or "").strip()
+            if value and _is_identifier_name(name):
+                groups.setdefault((tag, f"@{name}"), []).append(value)
+        for child in element:
+            if not isinstance(child.tag, str):
+                continue
+            child_tag = localname(child.tag)
+            if not _is_identifier_name(child_tag):
+                continue
+            value = (child.text or "").strip()
+            if value:
+                groups.setdefault((tag, child_tag), []).append(value)
+    return groups
+
+
+def identifier_normalisation(
+    values: dict[tuple[str, str], list[str]],
+) -> dict[tuple[str, str], dict[str, str]]:
+    """Churn-stripped mapping for each identifier group."""
+    result: dict[tuple[str, str], dict[str, str]] = {}
+    for key, group in values.items():
+        prefix = churn_prefix(group)
+        if prefix:
+            result[key] = {v: v[len(prefix) :] for v in group}
+            continue
+        suffix = churn_suffix(group)
+        result[key] = {
+            v: (v[: len(v) - len(suffix)] if suffix else v) for v in group
+        }
+    return result
+
+
+def apply_identifier_normalisation(
     records: list[NodeRecord],
-    ids: dict[str, list[str]],
-    normalised: dict[str, str],
+    normalisation: dict[tuple[str, str], dict[str, str]],
 ) -> list[NodeRecord]:
-    """Rewrite churning identifier values to their stable form.
+    """Rewrite churning identifier values in flattened records to stable forms.
 
     Without this the structural pass sees every regenerated identifier as a
-    changed value, so a response that merely reissued its session tokens reports
-    a wall of "no longer present / newly present" lines.
+    changed value, so a response that merely reissued its ids reports a wall of
+    "no longer present / newly present" lines.
     """
-    suffixes = identifier_suffixes(ids)
+    if not normalisation:
+        return records
+
+    # Index by (trailing tag/field) so a full tag path can be matched cheaply.
+    by_suffix: dict[str, dict[str, str]] = {}
+    for (tag, field), mapping in normalisation.items():
+        by_suffix[f"{tag}/{field}"] = mapping
+
     out: list[NodeRecord] = []
     for record in records:
         rewritten = record.value
-        if record.struct.endswith(tuple(suffixes)):
-            for suffix, candidates in suffixes.items():
-                if record.struct.endswith(suffix) and record.value in candidates:
-                    rewritten = normalised.get(record.value, record.value)
-                    break
-        out.append(replace(record, value=rewritten) if rewritten != record.value else record)
+        for suffix, mapping in by_suffix.items():
+            if record.struct.endswith(suffix) and record.value in mapping:
+                rewritten = mapping[record.value]
+                break
+        out.append(
+            replace(record, value=rewritten) if rewritten != record.value else record
+        )
     return out
 
 
 def _entities(root: etree._Element) -> dict[tuple[str, str], list[NodeRecord]]:
     """Collect ID-bearing entities keyed by (element name, normalised id)."""
-    ids = collect_entity_ids(root)
-    normalised = normalise_entity_keys(ids)
+    global_normalisation = identifier_normalisation(
+        collect_identifier_values(root)
+    )
 
     entities: dict[tuple[str, str], list[NodeRecord]] = {}
     for element in root.iter():
@@ -487,16 +679,26 @@ def _entities(root: etree._Element) -> dict[tuple[str, str], list[NodeRecord]]:
         raw = _identifier_value(element, spec)
         if not raw:
             continue
-        key = normalised.get(raw, raw)
+
+        # Reuse the same churn handling as the structural pass so entity keys and
+        # record values stay consistent even when the field is not the declared
+        # identity (Offer/@OfferID versus Fare/@ListKey, say).
+        id_name = spec[1:] if spec.startswith("@") else spec
+        mapping = global_normalisation.get((tag, f"@{id_name}")) or (
+            global_normalisation.get((tag, id_name))
+        )
+        key = mapping.get(raw, raw) if mapping else raw
 
         # Keep every record describing the entity except its own identifier, so
-        # two instances with the same id compare field-by-field.
-        id_name = spec[1:] if spec.startswith("@") else spec
+        # two instances with the same id compare field-by-field. Nested
+        # identifiers are normalised the same way, otherwise a reissued child id
+        # inside an otherwise unchanged parent reports as a content change.
         scoped = [
             record
             for record in _flatten_entity(element)
             if not _is_identifier_record(record, tag, id_name, raw)
         ]
+        scoped = apply_identifier_normalisation(scoped, global_normalisation)
         entities.setdefault((tag, key), []).extend(scoped)
     return entities
 
@@ -546,16 +748,16 @@ def diff_xml(
     report = DiffReport(base_label=base_label, new_label=new_label)
 
     # --- structural pass ---------------------------------------------------- #
-    # Identifiers whose trailing token is regenerated per response are rewritten
+    # Identifiers whose prefix or suffix is regenerated per response are rewritten
     # to their stable form before any comparison, otherwise every reissued id
     # would masquerade as a value change.
-    base_ids = collect_entity_ids(base_root)
-    new_ids = collect_entity_ids(new_root)
-    base_records = apply_id_normalisation(
-        flatten(base_root), base_ids, normalise_entity_keys(base_ids)
+    base_records = apply_identifier_normalisation(
+        flatten(base_root),
+        identifier_normalisation(collect_identifier_values(base_root)),
     )
-    new_records = apply_id_normalisation(
-        flatten(new_root), new_ids, normalise_entity_keys(new_ids)
+    new_records = apply_identifier_normalisation(
+        flatten(new_root),
+        identifier_normalisation(collect_identifier_values(new_root)),
     )
 
     base_struct = Counter(r.struct for r in base_records)

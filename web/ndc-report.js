@@ -32,57 +32,66 @@ function narrative(report, baselineInventory, newInventory) {
 
   const sentences = [];
 
-  const removed = report.entities_removed.filter((e) => e.entity === "Offer");
-  const added = report.entities_added.filter((e) => e.entity === "Offer");
+  // Report counts per entity type rather than enumerating identifiers: a real
+  // release pair can involve hundreds of offers, and a wall of ids is unreadable
+  // and buries the one line that matters.
+  function summarise(entities) {
+    const counts = {};
+    for (const e of entities) counts[e.entity] = (counts[e.entity] || 0) + 1;
+    return Object.keys(counts)
+      .sort((a, b) => counts[b] - counts[a] || (a < b ? -1 : 1))
+      .map((name) => `${counts[name]} ${name}`)
+      .join(", ");
+  }
+
+  const removed = report.entities_removed;
+  const added = report.entities_added;
+  const modified = report.entities_modified;
 
   if (removed.length) {
-    const ids = removed.map((e) => e.key).join(", ");
-    sentences.push(
-      `${removed.length} offer(s) present in the baseline are MISSING from the ` +
-        `new response: ${ids}.`
-    );
+    sentences.push(`MISSING from the new response: ${summarise(removed)}.`);
   }
   if (added.length) {
-    const ids = added.map((e) => e.key).join(", ");
-    sentences.push(`${added.length} new offer(s) appeared: ${ids}.`);
+    sentences.push(`NEW in the new response: ${summarise(added)}.`);
+  }
+  if (modified.length) {
+    sentences.push(`CHANGED under the same identifier: ${summarise(modified)}.`);
   }
 
-  const modifiedOffers = report.entities_modified.filter((e) => e.entity === "Offer");
-  const priceChanges = new Set();
-  for (const e of modifiedOffers) {
-    for (const miss of e.missing || []) {
-      if (miss.includes("TotalAmount")) priceChanges.add(e.key);
-    }
-  }
-  if (modifiedOffers.length) {
+  const priceChanged = modified.filter((e) =>
+    (e.missing || []).some((m) => m.indexOf("TotalAmount") !== -1)
+  );
+  if (priceChanged.length) {
     sentences.push(
-      `${modifiedOffers.length} offer(s) kept their ID but changed content.`
+      `${priceChanged.length} of those changed on price ` +
+        `(see the report for the exact amounts).`
     );
-  }
-  if (priceChanges.size) {
-    sentences.push(`Prices changed on: ${Array.from(priceChanges).sort().join(", ")}.`);
   }
 
-  const extraEntries = topEntries(report.extra_nodes);
-  if (extraEntries.length) {
+  const extraCount = Object.keys(report.extra_nodes || {}).length;
+  const missingCount = Object.keys(report.missing_nodes || {}).length;
+  if (extraCount && missingCount) {
     sentences.push(
-      "New nodes appeared under: " +
-        extraEntries.map(([p]) => shortPath(p)).join(", ") +
-        "."
+      `${extraCount} new node path(s) appeared; ${missingCount} existing node path(s) disappeared.`
     );
+  } else if (extraCount) {
+    sentences.push(`${extraCount} new node path(s) appeared.`);
+  } else if (missingCount) {
+    sentences.push(`${missingCount} node path(s) disappeared.`);
   }
-  const missingEntries = topEntries(report.missing_nodes);
-  if (missingEntries.length) {
+
+  if ((report.value_diffs || []).length) {
     sentences.push(
-      "Nodes no longer present under: " +
-        missingEntries.map(([p]) => shortPath(p)).join(", ") +
-        "."
+      `${report.value_diffs.length} value field(s) changed ` +
+        `(expand Value changes for detail).`
     );
   }
 
   const baseOffers = baselineInventory.Offer || 0;
   const newOffers = newInventory.Offer || 0;
-  sentences.push(`Offer count went from ${baseOffers} to ${newOffers}.`);
+  if (baseOffers || newOffers) {
+    sentences.push(`Offer count went from ${baseOffers} to ${newOffers}.`);
+  }
 
   return sentences.join(" ");
 }
@@ -112,41 +121,73 @@ function renderReport(report, maxItems = 40) {
 
   const lines = [`Comparing ${report.base} (baseline) vs ${report.new} (new):`];
 
-  if (report.entities_removed.length) {
-    lines.push("\nMISSING entities (in baseline, absent from new):");
-    for (const e of report.entities_removed.slice(0, maxItems)) {
-      lines.push(`  - ${e.entity} ${e.key} was removed`);
+  // Group by entity type with counts and a few examples. A real release pair can
+  // involve hundreds of offers, and one line per identifier buries the signal.
+  function bucket(entities, heading) {
+    if (!entities.length) return;
+    const counts = {};
+    const examples = {};
+    for (const e of entities) {
+      counts[e.entity] = (counts[e.entity] || 0) + 1;
+      if (!examples[e.entity]) examples[e.entity] = [];
+      if (examples[e.entity].length < 3) examples[e.entity].push(e.key);
     }
+    lines.push(heading);
+    Object.keys(counts)
+      .sort((a, b) => counts[b] - counts[a] || (a < b ? -1 : 1))
+      .forEach((name) => {
+        const count = counts[name];
+        const shown = examples[name].join(", ");
+        const more =
+          count <= examples[name].length
+            ? ""
+            : `, \u2026 (+${count - examples[name].length} more)`;
+        lines.push(`  ${name}: ${count}  (e.g. ${shown}${more})`);
+      });
   }
-  if (report.entities_added.length) {
-    lines.push("\nEXTRA entities (new, not in baseline):");
-    for (const e of report.entities_added.slice(0, maxItems)) {
-      lines.push(`  - ${e.entity} ${e.key} was added`);
-    }
-  }
+
+  bucket(report.entities_removed, "\nMISSING entities (in baseline, absent from new):");
+  bucket(report.entities_added, "\nEXTRA entities (new, not in baseline):");
+
   if (report.entities_modified.length) {
-    lines.push("\nMODIFIED entities (same ID, different content):");
-    for (const e of report.entities_modified.slice(0, maxItems)) {
-      lines.push(`  - ${e.entity} ${e.key}:`);
-      for (const m of (e.missing || []).slice(0, maxItems)) lines.push(`      missing: ${m}`);
-      for (const x of (e.extra || []).slice(0, maxItems)) lines.push(`      extra:   ${x}`);
+    lines.push(
+      `\nMODIFIED entities (same identifier, different content): ` +
+        `${report.entities_modified.length} total`
+    );
+    const fieldCounts = {};
+    for (const e of report.entities_modified) {
+      for (const field of e.missing || []) {
+        const key = field.split(" = ")[0];
+        fieldCounts[key] = (fieldCounts[key] || 0) + 1;
+      }
     }
+    Object.keys(fieldCounts)
+      .sort((a, b) => fieldCounts[b] - fieldCounts[a] || (a < b ? -1 : 1))
+      .slice(0, maxItems)
+      .forEach((field) => {
+        lines.push(`  ${field}: changed on ${fieldCounts[field]} entit(ies)`);
+      });
+    report.entities_modified.slice(0, 3).forEach((e) => {
+      lines.push(`  e.g. ${e.entity} ${e.key}:`);
+      (e.missing || []).slice(0, 4).forEach((m) => lines.push(`      was: ${m}`));
+      (e.extra || []).slice(0, 4).forEach((x) => lines.push(`      now: ${x}`));
+    });
   }
 
   const missingPaths = Object.entries(report.missing_nodes).sort();
   if (missingPaths.length) {
-    lines.push("\nMISSING node paths (tag -> count):");
+    lines.push(`\nMISSING node paths: ${missingPaths.length} distinct`);
     for (const [p, c] of missingPaths.slice(0, maxItems)) lines.push(`  - ${p} x${c}`);
   }
 
   const extraPaths = Object.entries(report.extra_nodes).sort();
   if (extraPaths.length) {
-    lines.push("\nEXTRA node paths (tag -> count):");
+    lines.push(`\nEXTRA node paths: ${extraPaths.length} distinct`);
     for (const [p, c] of extraPaths.slice(0, maxItems)) lines.push(`  + ${p} x${c}`);
   }
 
   if (report.value_diffs.length) {
-    lines.push("\nVALUE changes (same path, different values):");
+    lines.push(`\nVALUE changes: ${report.value_diffs.length} field(s)`);
     for (const v of report.value_diffs.slice(0, maxItems)) {
       for (const mv of (v.missing_values || []).slice(0, 10)) {
         lines.push(`  - ${v.path}: '${mv}' no longer present`);

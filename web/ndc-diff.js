@@ -48,6 +48,18 @@ const ENTITY_KEYS = {
   ContactInfo: "ContactInfoID",
 };
 
+// Minimum length of a shared *leading* fragment before it is treated as a
+// regenerated batch identifier. Real payloads look like
+//   XA67C09C8-37C4-4844-82B2-1  ->  XAA4633E4-E3C1-43D3-9153-1
+// where the UUID-shaped prefix is reissued per response and the trailing number
+// is what actually identifies the offer.
+const CHURN_PREFIX_MIN_LEN = 12;
+
+// A shared prefix containing a UUID is almost certainly a regenerated batch
+// token, so a shorter overlap is still worth stripping there.
+const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
+const CHURN_PREFIX_UUID_MIN_LEN = 6;
+
 // Minimum length of a shared trailing fragment before it is treated as a
 // per-response session token rather than meaningful data.
 const CHURN_SUFFIX_MIN_LEN = 6;
@@ -275,74 +287,174 @@ function identifierValue(element, spec) {
   return value ? value.trim() : null;
 }
 
+/** Longest trailing fragment shared by every value. */
+function commonSuffix(values) {
+  if (!values.length) return "";
+  let suffix = values[0];
+  for (let i = 1; i < values.length; i += 1) {
+    while (values[i].indexOf(suffix) !== values[i].length - suffix.length) {
+      suffix = suffix.slice(1);
+    }
+    if (!suffix) return "";
+  }
+  return suffix;
+}
+
+/** Longest leading fragment shared by every value. */
+function commonPrefix(values) {
+  if (!values.length) return "";
+  let prefix = values[0];
+  for (let i = 1; i < values.length; i += 1) {
+    while (values[i].indexOf(prefix) !== 0) {
+      prefix = prefix.slice(0, -1);
+    }
+    if (!prefix) return "";
+  }
+  return prefix;
+}
+
 /**
  * Longest trailing fragment shared by every value, if it looks like a token.
  *
- * Carriers regenerate the tail of each identifier on every response (a session
- * token), which would otherwise make every entity look removed-and-added.
- *
- * The only guard needed is a minimum length: short shared tails are ordinary in
- * real keys. Removing a common suffix can never make two distinct values equal,
- * so no separate collision check is required.
+ * Some carriers regenerate the tail of each identifier per response, which would
+ * otherwise make every entity look removed-and-added. The guard is a minimum
+ * length: short shared tails are ordinary in real keys, so stripping them would
+ * corrupt genuine data.
  */
 function churnSuffix(values) {
   if (values.length < 2) return "";
   const limit = Math.min.apply(null, values.map((v) => v.length)) - 1;
   if (limit < CHURN_SUFFIX_MIN_LEN) return "";
-
-  let suffix = "";
-  for (let offset = 1; offset <= limit; offset += 1) {
-    const candidate = values[0].slice(-offset);
-    if (values.every((v) => v.endsWith(candidate))) suffix = candidate;
-    else break;
-  }
+  let suffix = commonSuffix(values);
+  if (suffix.length > limit) suffix = suffix.slice(suffix.length - limit);
   return suffix.length >= CHURN_SUFFIX_MIN_LEN ? suffix : "";
 }
 
-/** Map each raw id to its churn-stripped form, per entity type. */
-function normaliseEntityKeys(ids) {
-  const mapping = {};
-  for (const tag of Object.keys(ids)) {
-    const values = ids[tag];
-    const suffix = churnSuffix(values);
-    for (const value of values) {
-      mapping[value] = suffix ? value.slice(0, value.length - suffix.length) : value;
-    }
-  }
-  return mapping;
-}
-
-/** Tag-path suffixes that carry identifier values, mapped to those raw values. */
-function identifierSuffixes(ids) {
-  const suffixes = {};
-  for (const tag of Object.keys(ids)) {
-    const spec = ENTITY_KEYS[tag];
-    const name = spec.charAt(0) === "@" ? spec.slice(1) : spec;
-    for (const suffix of [tag + "/@" + name, tag + "/" + name]) {
-      if (!suffixes[suffix]) suffixes[suffix] = new Set();
-      for (const v of ids[tag]) suffixes[suffix].add(v);
-    }
-  }
-  return suffixes;
+/**
+ * Longest leading fragment shared by every value, if it looks like a token.
+ *
+ * Offer identifiers are often built as "<regenerated-batch-uuid>-<ordinal>": a
+ * fresh UUID per response with a stable ordinal. With the whole prefix reissued,
+ * every offer appears removed and re-added, burying the real differences in
+ * hundreds of noise lines. The guards are length-based, because plain numeric
+ * identifiers such as SEG1/SEG2 share "SEG" and must not be touched.
+ */
+function churnPrefix(values) {
+  if (values.length < 2) return "";
+  const limit = Math.min.apply(null, values.map((v) => v.length)) - 1;
+  let prefix = commonPrefix(values);
+  if (!prefix) return "";
+  if (prefix.length > limit) prefix = prefix.slice(0, limit);
+  const uuid = UUID_RE.test(prefix);
+  const threshold = uuid ? CHURN_PREFIX_UUID_MIN_LEN : CHURN_PREFIX_MIN_LEN;
+  return prefix.length >= threshold ? prefix : "";
 }
 
 /**
- * Rewrite churning identifier values to their stable form.
+ * Whether a name looks like an identifier.
  *
- * Without this the structural pass sees every regenerated identifier as a
- * changed value, so a response that merely reissued its session tokens reports a
- * wall of "no longer present / newly present" lines.
+ * Carriers attach several identifier-like values to one element, and any can be
+ * regenerated per response, so match on the name rather than a fixed list —
+ * otherwise a new ID-bearing field silently reintroduces the churn noise.
  */
-function applyIdNormalisation(records, ids, normalised) {
-  const suffixes = identifierSuffixes(ids);
-  const suffixList = Object.keys(suffixes);
+function isIdentifierName(name) {
+  const lowered = String(name || "").toLowerCase();
+  return (
+    lowered.endsWith("id") ||
+    lowered.endsWith("key") ||
+    lowered.endsWith("ref") ||
+    lowered.endsWith("reference") ||
+    lowered.endsWith("token") ||
+    lowered.endsWith("uuid") ||
+    lowered.endsWith("guid")
+  );
+}
+
+/**
+ * Every identifier-like value, grouped by "tag\u0000field".
+ * Covers attributes and child elements alike.
+ */
+function collectIdentifierValues(root) {
+  const groups = {};
+  for (const element of descendants(root)) {
+    const tag = localname(element.tagName);
+    const attrs = element.attributes || [];
+    for (let i = 0; i < attrs.length; i += 1) {
+      const name = localname(attrs[i].name);
+      const value = (attrs[i].value || "").trim();
+      if (value && isIdentifierName(name)) {
+        const key = tag + "\u0000@" + name;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(value);
+      }
+    }
+    for (const child of elementChildren(element)) {
+      const childTag = localname(child.tagName);
+      if (!isIdentifierName(childTag)) continue;
+      const value = (directText(child) || "").trim();
+      if (value) {
+        const key = tag + "\u0000" + childTag;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(value);
+      }
+    }
+  }
+  return groups;
+}
+
+/** Churn-stripped mapping for each identifier group. */
+function identifierNormalisation(values) {
+  const result = {};
+  Object.keys(values).forEach((key) => {
+    const group = values[key];
+    const prefix = churnPrefix(group);
+    if (prefix) {
+      const mapping = {};
+      group.forEach((v) => (mapping[v] = v.slice(prefix.length)));
+      result[key] = mapping;
+      return;
+    }
+    const suffix = churnSuffix(group);
+    const mapping = {};
+    group.forEach((v) => {
+      mapping[v] = suffix ? v.slice(0, v.length - suffix.length) : v;
+    });
+    result[key] = mapping;
+  });
+  return result;
+}
+
+/**
+ * Rewrite churning identifier values in flattened records to stable forms.
+ * Without this the structural pass sees every regenerated identifier as a
+ * changed value.
+ */
+function applyIdentifierNormalisation(records, normalisation) {
+  const keys = Object.keys(normalisation || {});
+  if (!keys.length) return records;
+
+  const bySuffix = {};
+  keys.forEach((key) => {
+    const parts = key.split("\u0000");
+    bySuffix[parts[0] + "/" + parts[1]] = normalisation[key];
+  });
+  const suffixList = Object.keys(bySuffix);
+
   return records.map((record) => {
     for (const suffix of suffixList) {
-      if (record.struct.endsWith(suffix) && suffixes[suffix].has(record.value)) {
-        const rewritten = normalised[record.value] || record.value;
-        return rewritten === record.value
-          ? record
-          : { struct: record.struct, path: record.path, kind: record.kind, value: rewritten };
+      const mapping = bySuffix[suffix];
+      if (
+        record.struct.indexOf(suffix) === record.struct.length - suffix.length &&
+        Object.prototype.hasOwnProperty.call(mapping, record.value)
+      ) {
+        const rewritten = mapping[record.value];
+        if (rewritten === record.value) return record;
+        return {
+          struct: record.struct,
+          path: record.path,
+          kind: record.kind,
+          value: rewritten,
+        };
       }
     }
     return record;
@@ -351,8 +463,7 @@ function applyIdNormalisation(records, ids, normalised) {
 
 /** Collect ID-bearing entities keyed by "Tag\u0000normalised-id". */
 function collectEntities(root) {
-  const ids = collectEntityIds(root);
-  const normalised = normaliseEntityKeys(ids);
+  const globalNormalisation = identifierNormalisation(collectIdentifierValues(root));
 
   const entities = new Map();
   for (const element of descendants(root)) {
@@ -362,15 +473,25 @@ function collectEntities(root) {
 
     const raw = identifierValue(element, spec);
     if (!raw) continue;
-    const key = normalised[raw] || raw;
+
+    // Reuse the same churn handling as the structural pass so entity keys and
+    // record values stay consistent even when the field is not the declared
+    // identity (Offer/@OfferID versus Fare/@ListKey, say).
+    const idName = spec.charAt(0) === "@" ? spec.slice(1) : spec;
+    const mapping =
+      globalNormalisation[tag + "\u0000@" + idName] ||
+      globalNormalisation[tag + "\u0000" + idName];
+    const key = mapping && mapping[raw] ? mapping[raw] : raw;
 
     // Keep every record describing the entity except its own identifier, so two
-    // instances with the same id compare field-by-field.
-    const idName = spec.charAt(0) === "@" ? spec.slice(1) : spec;
+    // instances with the same id compare field-by-field. Nested identifiers are
+    // normalised too, otherwise a reissued child id inside an otherwise
+    // unchanged parent reports as a content change.
     const idStructs = [tag + "/" + idName, tag + "/@" + idName];
-    const scoped = flattenEntity(element).filter(
+    let scoped = flattenEntity(element).filter(
       (r) => !(r.value === raw && idStructs.indexOf(r.struct) !== -1)
     );
+    scoped = applyIdentifierNormalisation(scoped, globalNormalisation);
 
     const composite = tag + "\u0000" + key;
     if (!entities.has(composite)) entities.set(composite, []);
@@ -467,16 +588,16 @@ function diffXml(baseXml, newXml, baseLabel = "baseline", newLabel = "new") {
   };
 
   // --- structural pass ---------------------------------------------------- //
-  // Identifiers whose trailing token is regenerated per response are rewritten
+  // Identifiers whose prefix or suffix is regenerated per response are rewritten
   // to their stable form before any comparison, otherwise every reissued id
   // would masquerade as a value change.
-  const baseIds = collectEntityIds(baseRoot);
-  const newIds = collectEntityIds(newRoot);
-  const baseRecords = applyIdNormalisation(
-    flatten(baseRoot), baseIds, normaliseEntityKeys(baseIds)
+  const baseRecords = applyIdentifierNormalisation(
+    flatten(baseRoot),
+    identifierNormalisation(collectIdentifierValues(baseRoot))
   );
-  const newRecords = applyIdNormalisation(
-    flatten(newRoot), newIds, normaliseEntityKeys(newIds)
+  const newRecords = applyIdentifierNormalisation(
+    flatten(newRoot),
+    identifierNormalisation(collectIdentifierValues(newRoot))
   );
 
   const baseStruct = new Map();
@@ -616,9 +737,12 @@ return {
   flatten: flatten,
   collectEntities: collectEntities,
   collectEntityIds: collectEntityIds,
+  collectIdentifierValues: collectIdentifierValues,
+  identifierNormalisation: identifierNormalisation,
+  applyIdentifierNormalisation: applyIdentifierNormalisation,
   descendants: descendants,
   churnSuffix: churnSuffix,
-  normaliseEntityKeys: normaliseEntityKeys,
+  churnPrefix: churnPrefix,
   summarizeMessage: summarizeMessage,
   diffXml: diffXml,
 };

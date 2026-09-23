@@ -88,11 +88,21 @@
       }
       const parts = [];
       if (removed.length) {
+        // Counts by entity type, then a few examples — never the whole list.
+        const counts = {};
+        removed.forEach((e) => (counts[e.entity] = (counts[e.entity] || 0) + 1));
+        const byType = Object.keys(counts)
+          .sort((a, b) => counts[b] - counts[a])
+          .map((name) => counts[name] + " " + name)
+          .join(", ");
+        parts.push("MISSING from the new response: " + byType + ".");
+        const examples = removed.slice(0, 5).map((e) => e.entity + " " + e.key);
         parts.push(
-          removed.length +
-            " entit(ies) present in the baseline are missing: " +
-            removed.map((e) => e.entity + " " + e.key).join(", ") +
-            "."
+          "Examples: " +
+            examples.join(", ") +
+            (removed.length > examples.length
+              ? " … (+" + (removed.length - examples.length) + " more)"
+              : "")
         );
       }
       if (missingPaths.length) {
@@ -120,11 +130,20 @@
       }
       const parts = [];
       if (added.length) {
+        const counts = {};
+        added.forEach((e) => (counts[e.entity] = (counts[e.entity] || 0) + 1));
+        const byType = Object.keys(counts)
+          .sort((a, b) => counts[b] - counts[a])
+          .map((name) => counts[name] + " " + name)
+          .join(", ");
+        parts.push("NEW in the new response: " + byType + ".");
+        const examples = added.slice(0, 5).map((e) => e.entity + " " + e.key);
         parts.push(
-          added.length +
-            " new entit(ies) appeared: " +
-            added.map((e) => e.entity + " " + e.key).join(", ") +
-            "."
+          "Examples: " +
+            examples.join(", ") +
+            (added.length > examples.length
+              ? " … (+" + (added.length - examples.length) + " more)"
+              : "")
         );
       }
       if (extraPaths.length) {

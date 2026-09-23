@@ -99,7 +99,13 @@ class Workspace:
 
 
 def _narrative(report, review) -> str:
-    """Plain-language summary of the diff, no LLM required."""
+    """Plain-language summary of the diff, no LLM required.
+
+    Reports *counts* per entity type rather than enumerating identifiers: a real
+    release pair can involve hundreds of offers, and a wall of IDs is unreadable
+    and buries the one line that matters. The full detail stays available in the
+    report tables and the JSON export.
+    """
     if report.identical:
         return (
             "The new response is identical to the baseline. Nothing is missing and "
@@ -108,47 +114,87 @@ def _narrative(report, review) -> str:
 
     sentences: list[str] = []
 
-    removed = [e for e in report.entities_removed if e.entity == "Offer"]
-    added = [e for e in report.entities_added if e.entity == "Offer"]
-    if removed:
-        ids = ", ".join(e.key for e in removed)
-        sentences.append(
-            f"{len(removed)} offer(s) present in the baseline are MISSING from the "
-            f"new response: {ids}."
-        )
-    if added:
-        ids = ", ".join(e.key for e in added)
-        sentences.append(f"{len(added)} new offer(s) appeared: {ids}.")
+    def summarise(entities) -> str:
+        """'119 Offer, 3 Fare' — counts per entity type, most frequent first."""
+        counts: dict[str, int] = {}
+        for entity in entities:
+            counts[entity.entity] = counts.get(entity.entity, 0) + 1
+        ordered = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        return ", ".join(f"{count} {name}" for name, count in ordered)
 
-    modified_offers = [e for e in report.entities_modified if e.entity == "Offer"]
-    price_changes = [
-        e.key for e in modified_offers for miss in e.missing if "TotalAmount" in miss
-    ]
-    if modified_offers:
+    removed = report.entities_removed
+    added = report.entities_added
+    modified = report.entities_modified
+
+    if removed:
+        sentences.append(f"MISSING from the new response: {summarise(removed)}.")
+    if added:
+        sentences.append(f"NEW in the new response: {summarise(added)}.")
+    if modified:
         sentences.append(
-            f"{len(modified_offers)} offer(s) kept their ID but changed content."
+            f"CHANGED under the same identifier: {summarise(modified)}."
         )
-    if price_changes:
-        sentences.append(f"Prices changed on: {', '.join(sorted(set(price_changes)))}.")
+
+    # Flag the specific reasons a reviewer cares about, without dumping ids.
+    price_changed = [
+        e for e in modified if any("TotalAmount" in m for m in (e.missing or []))
+    ]
+    if price_changed:
+        sentences.append(
+            f"{len(price_changed)} of those changed on price "
+            f"(see the report for the exact amounts)."
+        )
 
     if report.counts_extra:
-        top = sorted(report.counts_extra.items(), key=lambda kv: -kv[1])[:5]
         sentences.append(
-            "New nodes appeared under: " + ", ".join(_short(p) for p, _ in top) + "."
+            f"{len(report.counts_extra)} new node path(s) appeared; "
+            f"{len(report.counts_missing)} existing node path(s) disappeared."
         )
-    if report.counts_missing:
-        top = sorted(report.counts_missing.items(), key=lambda kv: -kv[1])[:5]
+    elif report.counts_missing:
+        sentences.append(f"{len(report.counts_missing)} node path(s) disappeared.")
+
+    if report.value_diffs:
         sentences.append(
-            "Nodes no longer present under: "
-            + ", ".join(_short(p) for p, _ in top)
-            + "."
+            f"{len(report.value_diffs)} value field(s) changed "
+            f"(expand Value changes for detail)."
         )
 
     base_offers = review.baseline_summary["entity_counts"].get("Offer", 0)
     new_offers = review.new_summary["entity_counts"].get("Offer", 0)
-    sentences.append(f"Offer count went from {base_offers} to {new_offers}.")
+    if base_offers or new_offers:
+        sentences.append(f"Offer count went from {base_offers} to {new_offers}.")
 
     return " ".join(sentences)
+
+
+def _shape_summary(report, scale: int = 12) -> list[str]:
+    """Compact per-entity-type lines: counts plus a few example identifiers.
+
+    Used by the report renderer so a 119-offer change reads as one line with
+    examples rather than 119 lines.
+    """
+    lines: list[str] = []
+
+    def bucket(entities, heading: str) -> None:
+        counts: dict[str, int] = {}
+        examples: dict[str, list[str]] = {}
+        for entity in entities:
+            counts[entity.entity] = counts.get(entity.entity, 0) + 1
+            examples.setdefault(entity.entity, [])
+            if len(examples[entity.entity]) < 3:
+                examples[entity.entity].append(entity.key)
+        if not counts:
+            return
+        lines.append(heading)
+        for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+            shown = ", ".join(examples[name])
+            more = "" if count <= len(examples[name]) else f", … (+{count - len(examples[name])} more)"
+            lines.append(f"  {name}: {count} — e.g. {shown}{more}")
+
+    bucket(report.entities_removed, "\nMISSING entities (in baseline, absent from new):")
+    bucket(report.entities_added, "\nEXTRA entities (new, not in baseline):")
+    bucket(report.entities_modified, "\nMODIFIED entities (same identifier, different content):")
+    return lines
 
 
 def _short(path: str) -> str:
