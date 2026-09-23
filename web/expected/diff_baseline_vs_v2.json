@@ -1,0 +1,88 @@
+{
+  "base": "airshopping_rs_baseline.xml",
+  "baseline_inventory": {
+    "Fare": 4,
+    "FlightSegment": 7,
+    "Offer": 4,
+    "OfferItem": 4,
+    "OriginDest": 1,
+    "Pax": 2
+  },
+  "entities_added": [],
+  "entities_modified": [
+    {
+      "change": "modified",
+      "entity": "Offer",
+      "extra": [
+        "Offer/OfferItem/Price/TotalAmount = '4999.00'"
+      ],
+      "key": "IT2",
+      "missing": [
+        "Offer/OfferItem/Price/TotalAmount = '4356.58'"
+      ]
+    },
+    {
+      "change": "modified",
+      "entity": "OfferItem",
+      "extra": [
+        "OfferItem/Price/TotalAmount = '4999.00'"
+      ],
+      "key": "IT2-OI1",
+      "missing": [
+        "OfferItem/Price/TotalAmount = '4356.58'"
+      ]
+    }
+  ],
+  "entities_removed": [
+    {
+      "change": "removed",
+      "entity": "Offer",
+      "extra": [],
+      "key": "IT4",
+      "missing": []
+    },
+    {
+      "change": "removed",
+      "entity": "OfferItem",
+      "extra": [],
+      "key": "IT4-OI1",
+      "missing": []
+    }
+  ],
+  "extra_nodes": {
+    "AirShoppingRS/Response/MarketingMessages/MarketMessage/MessageText": 1
+  },
+  "identical": false,
+  "missing_nodes": {
+    "AirShoppingRS/Response/Offers/Offer/Associations/FareRef": 1,
+    "AirShoppingRS/Response/Offers/Offer/Associations/FlightRefs/FlightSegmentReference/@ref": 1,
+    "AirShoppingRS/Response/Offers/Offer/Associations/OriginDestRef": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferID": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/CabinTypeCode": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/Connections": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/ItineraryDuration": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/OfferItemID": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/Price/BaseAmount": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/Price/BaseAmount/@CurCode": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TaxAmount": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TaxAmount/@CurCode": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TotalAmount": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TotalAmount/@CurCode": 1,
+    "AirShoppingRS/Response/Offers/Offer/OfferItem/SeatsAvailable": 1,
+    "AirShoppingRS/Response/Offers/Offer/OwnerCode": 1,
+    "AirShoppingRS/Response/Offers/Offer/ValidatingCarrierCode": 1
+  },
+  "narrative": "1 offer(s) present in the baseline are MISSING from the new response: IT4. 1 offer(s) kept their ID but changed content. Prices changed on: IT2. New nodes appeared under: MarketingMessages/MarketMessage/MessageText. Nodes no longer present under: Offers/Offer/OfferID, Offers/Offer/OwnerCode, Offers/Offer/ValidatingCarrierCode, Offers/Offer/Associations/FlightRefs/FlightSegmentReference/@ref, Offers/Offer/Associations/OriginDestRef. Offer count went from 4 to 3.",
+  "new": "airshopping_rs_v2.xml",
+  "new_inventory": {
+    "Fare": 4,
+    "FlightSegment": 7,
+    "Offer": 3,
+    "OfferItem": 3,
+    "OriginDest": 1,
+    "Pax": 2
+  },
+  "render": "Comparing airshopping_rs_baseline.xml (baseline) vs airshopping_rs_v2.xml (new):\n\nMISSING entities (in baseline, absent from new):\n  - Offer IT4 was removed\n  - OfferItem IT4-OI1 was removed\n\nMODIFIED entities (same ID, different content):\n  - Offer IT2:\n      missing: Offer/OfferItem/Price/TotalAmount = '4356.58'\n      extra:   Offer/OfferItem/Price/TotalAmount = '4999.00'\n  - OfferItem IT2-OI1:\n      missing: OfferItem/Price/TotalAmount = '4356.58'\n      extra:   OfferItem/Price/TotalAmount = '4999.00'\n\nMISSING node paths (tag -> count):\n  - AirShoppingRS/Response/Offers/Offer/Associations/FareRef x1\n  - AirShoppingRS/Response/Offers/Offer/Associations/FlightRefs/FlightSegmentReference/@ref x1\n  - AirShoppingRS/Response/Offers/Offer/Associations/OriginDestRef x1\n  - AirShoppingRS/Response/Offers/Offer/OfferID x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/CabinTypeCode x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Connections x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/ItineraryDuration x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/OfferItemID x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/BaseAmount x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/BaseAmount/@CurCode x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TaxAmount x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TaxAmount/@CurCode x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TotalAmount x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TotalAmount/@CurCode x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/SeatsAvailable x1\n  - AirShoppingRS/Response/Offers/Offer/OwnerCode x1\n  - AirShoppingRS/Response/Offers/Offer/ValidatingCarrierCode x1\n\nEXTRA node paths (tag -> count):\n  + AirShoppingRS/Response/MarketingMessages/MarketMessage/MessageText x1",
+  "review_render": "Comparing airshopping_rs_baseline.xml (baseline) vs airshopping_rs_v2.xml (new):\n\nMISSING entities (in baseline, absent from new):\n  - Offer IT4 was removed\n  - OfferItem IT4-OI1 was removed\n\nMODIFIED entities (same ID, different content):\n  - Offer IT2:\n      missing: Offer/OfferItem/Price/TotalAmount = '4356.58'\n      extra:   Offer/OfferItem/Price/TotalAmount = '4999.00'\n  - OfferItem IT2-OI1:\n      missing: OfferItem/Price/TotalAmount = '4356.58'\n      extra:   OfferItem/Price/TotalAmount = '4999.00'\n\nMISSING node paths (tag -> count):\n  - AirShoppingRS/Response/Offers/Offer/Associations/FareRef x1\n  - AirShoppingRS/Response/Offers/Offer/Associations/FlightRefs/FlightSegmentReference/@ref x1\n  - AirShoppingRS/Response/Offers/Offer/Associations/OriginDestRef x1\n  - AirShoppingRS/Response/Offers/Offer/OfferID x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/CabinTypeCode x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Connections x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/ItineraryDuration x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/OfferItemID x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/BaseAmount x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/BaseAmount/@CurCode x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TaxAmount x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TaxAmount/@CurCode x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TotalAmount x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/Price/TotalAmount/@CurCode x1\n  - AirShoppingRS/Response/Offers/Offer/OfferItem/SeatsAvailable x1\n  - AirShoppingRS/Response/Offers/Offer/OwnerCode x1\n  - AirShoppingRS/Response/Offers/Offer/ValidatingCarrierCode x1\n\nEXTRA node paths (tag -> count):\n  + AirShoppingRS/Response/MarketingMessages/MarketMessage/MessageText x1\n\nBaseline inventory:\n  Pax: 2\n  OriginDest: 1\n  FlightSegment: 7\n  Fare: 4\n  Offer: 4\n  OfferItem: 4\nNew inventory:\n  Pax: 2\n  OriginDest: 1\n  FlightSegment: 7\n  Fare: 4\n  Offer: 3\n  OfferItem: 3",
+  "value_diffs": []
+}

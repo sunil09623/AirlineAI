@@ -26,3 +26,7 @@ ollama/
 
 # OS
 .DS_Store
+
+# Node harness for the browser-only test (dev dependency only)
+node_modules/
+package-lock.json

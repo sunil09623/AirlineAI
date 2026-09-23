@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Browser self-test — NDC diff engine</title>
+<style>
+  body { background:#0f1115; color:#e6e9ef; font:13px/1.6 ui-monospace,Menlo,monospace; padding:24px; }
+  h1 { font-size:15px; }
+  .pass { color:#4ade80; } .fail { color:#ff6b6b; }
+  pre { background:#0d1016; border:1px solid #2b303b; padding:12px; border-radius:8px; overflow:auto; }
+</style>
+</head>
+<body>
+<h1>Browser self-test — NDC diff engine (real DOM, real DOMParser)</h1>
+<p>Fetches <code>../samples/*.xml</code> and asserts the engine matches the Python
+reference. Requires being served over HTTP (fetch does not work from file://).</p>
+<div id="result">running…</div>
+<pre id="detail"></pre>
+
+<script src="ndc-diff.js"></script>
+<script src="ndc-report.js"></script>
+<script>
+(async function () {
+  var out = document.getElementById("result");
+  var detail = document.getElementById("detail");
+  var lines = [];
+  var failures = 0;
+
+  function check(name, actual, want) {
+    var a = stable(actual), w = stable(want);
+    if (a === w) { lines.push("PASS  " + name); }
+    else { failures++; lines.push("FAIL  " + name + "\n  expected " + w + "\n  actual   " + a); }
+  }
+  function stable(v) {
+    if (Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
+    if (v && typeof v === "object") {
+      return "{" + Object.keys(v).sort().map(function (k) {
+        return JSON.stringify(k) + ":" + stable(v[k]);
+      }).join(",") + "}";
+    }
+    return JSON.stringify(v);
+  }
+
+  try {
+    // XML fetch: guard against accidentally receiving an HTML error page.
+    async function fetchFirst(paths) {
+      var lastErr = null;
+      for (var i = 0; i < paths.length; i++) {
+        try {
+          var res = await fetch(paths[i]);
+          if (!res.ok) throw new Error("HTTP " + res.status + " for " + paths[i]);
+          var text = await res.text();
+          if (/^\s*</.test(text) && text.indexOf("parsererror") === -1) return text;
+          throw new Error("unexpected content at " + paths[i]);
+        } catch (e) { lastErr = e; }
+      }
+      throw lastErr || new Error("no candidate path worked");
+    }
+
+    // JSON fetch: same idea, but the body legitimately starts with '{'.
+    async function fetchJson(paths) {
+      var lastErr = null;
+      for (var i = 0; i < paths.length; i++) {
+        try {
+          var res = await fetch(paths[i]);
+          if (!res.ok) throw new Error("HTTP " + res.status + " for " + paths[i]);
+          var text = await res.text();
+          if (/^\s*[{[]/.test(text)) return JSON.parse(text);
+          throw new Error("unexpected content at " + paths[i]);
+        } catch (e) { lastErr = e; }
+      }
+      throw lastErr || new Error("no candidate path worked");
+    }
+
+    var base = await fetchFirst(["samples/airshopping_rs_baseline.xml", "../samples/airshopping_rs_baseline.xml"]);
+    var upd  = await fetchFirst(["samples/airshopping_rs_v2.xml", "../samples/airshopping_rs_v2.xml"]);
+    var expected = await fetchJson(["expected/diff_baseline_vs_v2.json", "web/expected/diff_baseline_vs_v2.json"]);
+
+    var report = NDC.diffXml(base, upd, "airshopping_rs_baseline.xml", "airshopping_rs_v2.xml");
+    var baseSummary = NDC.summarizeMessage(NDC.parseXml(base), "airshopping_rs_baseline.xml");
+    var newSummary = NDC.summarizeMessage(NDC.parseXml(upd), "airshopping_rs_v2.xml");
+
+    check("identical flag", report.identical, expected.identical);
+    check("entities_removed", report.entities_removed.map(function (e) { return [e.entity, e.key]; }),
+          expected.entities_removed.map(function (e) { return [e.entity, e.key]; }));
+    check("entities_added", report.entities_added.map(function (e) { return [e.entity, e.key]; }),
+          expected.entities_added.map(function (e) { return [e.entity, e.key]; }));
+    check("missing_nodes", report.missing_nodes, expected.missing_nodes);
+    check("extra_nodes", report.extra_nodes, expected.extra_nodes);
+    check("baseline inventory", baseSummary.entity_counts, expected.baseline_inventory);
+    check("new inventory", newSummary.entity_counts, expected.new_inventory);
+    check("narrative", NDCReport.narrative(report, baseSummary.entity_counts, newSummary.entity_counts), expected.narrative);
+    check("review_render", NDCReport.renderReview(report, baseSummary.entity_counts, newSummary.entity_counts), expected.review_render);
+
+    // Malformed XML must be rejected with a readable message.
+    var threw = false;
+    try { NDC.parseXml("<AirShoppingRS><unclosed>"); } catch (e) { threw = true; }
+    check("malformed XML rejected", threw, true);
+
+    // A reordered document must not produce false differences.
+    var reordered = base.replace(/(<Offers>)([\s\S]*?)(<\/Offers>)/, function (_m, o, inner, c) {
+      var offers = inner.match(/<Offer>[\s\S]*?<\/Offer>/g) || [];
+      return o + offers.reverse().join("") + c;
+    });
+    check("reordering is not a difference", NDC.diffXml(base, reordered).identical, true);
+  } catch (err) {
+    failures++;
+    lines.push("EXCEPTION: " + (err && err.message ? err.message : err));
+  }
+
+  out.innerHTML = failures === 0
+    ? '<span class="pass">ALL CHECKS PASSED in a real browser DOM</span>'
+    : '<span class="fail">' + failures + ' CHECK(S) FAILED</span>';
+  detail.textContent = lines.join("\n");
+})();
+</script>
+</body>
+</html>

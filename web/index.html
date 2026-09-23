@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NDC AirShopping Reviewer — offline, browser-only</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --line: #2b303b;
+    --text: #e6e9ef;
+    --muted: #9aa4b2;
+    --accent: #5b9dff;
+    --missing: #ff6b6b;
+    --extra: #4ade80;
+    --changed: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    padding: 14px 20px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--panel);
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  .badge {
+    font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    border: 1px solid #24603a; color: var(--extra);
+  }
+  main { padding: 18px 20px 48px; max-width: 1100px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px;
+  }
+  .status { color: var(--muted); font-size: 12.5px; margin: 0 0 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .slot {
+    background: var(--panel-2); border: 1px dashed var(--line);
+    border-radius: 10px; padding: 14px;
+  }
+  .slot h3 { margin: 0 0 4px; font-size: 13px; }
+  .slot p { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+  .slot.filled { border-style: solid; border-color: #2f6f4a; }
+  .slot.error { border-style: solid; border-color: #7a2c2c; }
+  .file-name { font-size: 12px; color: var(--extra); word-break: break-all; margin-top: 8px; }
+  .file-name.err { color: var(--missing); }
+  input[type=file] { display: none; }
+  label.pick {
+    display: inline-block; background: #232833; border: 1px solid var(--line);
+    color: var(--text); padding: 7px 12px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  }
+  label.pick:hover { background: #2b313d; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+  button.primary {
+    background: var(--accent); color: #08111f; border: none; padding: 9px 16px;
+    border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px;
+  }
+  button.primary:disabled { opacity: .45; cursor: not-allowed; }
+  button.ghost {
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  }
+  .narrative {
+    margin-top: 18px; padding: 14px 16px; background: #141a24;
+    border-left: 3px solid var(--accent); border-radius: 8px; font-size: 13.5px;
+  }
+  h2 { font-size: 14px; margin: 24px 0 8px; }
+  .counts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 10px; font-size: 12px; color: var(--muted);
+  }
+  .chip b { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 5px; font-weight: 600; }
+  .tag.missing, .tag.removed { background: #3a1d1d; color: var(--missing); }
+  .tag.extra, .tag.added { background: #14301f; color: var(--extra); }
+  .tag.modified { background: #33280d; color: var(--changed); }
+  pre {
+    background: #0d1016; border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px; overflow: auto; max-height: 460px; font-size: 12px; color: #c8d0dc;
+  }
+  .hidden { display: none; }
+  .fileproto {
+    margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 12px;
+  }
+  .fileproto b { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <h1>NDC AirShopping Reviewer</h1>
+  <span class="badge">100% offline · no install · nothing uploaded</span>
+</header>
+
+<main>
+  <section class="panel">
+    <p class="status">
+      Drop in the baseline <b>AirShoppingRS</b> and the new one to see exactly what is
+      missing and what is extra. The optional <b>AirShoppingRQ</b> adds request context.
+      Files are read in this browser tab and never leave your machine.
+    </p>
+
+    <div class="grid">
+      <div class="slot" id="slot-baseline_rq">
+        <h3>1. AirShoppingRQ <span class="badge" style="border-color:#2b303b;color:#9aa4b2">optional</span></h3>
+        <p>The original request, for context.</p>
+        <input type="file" id="file-baseline_rq" accept=".xml,text/xml,application/xml" />
+        <label class="pick" for="file-baseline_rq">Choose file</label>
+        <div class="file-name" data-for="baseline_rq"></div>
+      </div>
+      <div class="slot" id="slot-baseline_rs">
+        <h3>2. Baseline AirShoppingRS</h3>
+        <p>The first response, your reference.</p>
+        <input type="file" id="file-baseline_rs" accept=".xml,text/xml,application/xml" />
+        <label class="pick" for="file-baseline_rs">Choose file</label>
+        <div class="file-name" data-for="baseline_rs"></div>
+      </div>
+      <div class="slot" id="slot-new_rs">
+        <h3>3. New AirShoppingRS</h3>
+        <p>The second response to compare.</p>
+        <input type="file" id="file-new_rs" accept=".xml,text/xml,application/xml" />
+        <label class="pick" for="file-new_rs">Choose file</label>
+        <div class="file-name" data-for="new_rs"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="primary" id="review-btn" disabled>Compare responses</button>
+      <button class="ghost" id="clear-btn">Clear</button>
+      <button class="ghost" id="demo-btn">Load sample files</button>
+      <span class="status" id="review-status"></span>
+    </div>
+
+    <div id="review-output" class="hidden">
+      <div class="narrative" id="narrative"></div>
+
+      <h2>Counts</h2>
+      <div class="counts" id="counts"></div>
+
+      <h2>Entities missing or extra</h2>
+      <table>
+        <thead><tr><th>Change</th><th>Entity</th><th>ID</th><th>Details</th></tr></thead>
+        <tbody id="entity-rows"></tbody>
+      </table>
+
+      <h2>Node paths</h2>
+      <table>
+        <thead><tr><th>Change</th><th>Path</th><th>Count</th></tr></thead>
+        <tbody id="node-rows"></tbody>
+      </table>
+
+      <h2>Value changes</h2>
+      <table>
+        <thead><tr><th>Path</th><th>No longer present</th><th>Newly present</th></tr></thead>
+        <tbody id="value-rows"></tbody>
+      </table>
+
+      <h2>Full report</h2>
+      <pre id="full-report"></pre>
+
+      <div class="row">
+        <button class="ghost" id="copy-btn">Copy report</button>
+        <button class="ghost" id="download-json-btn">Download JSON</button>
+      </div>
+    </div>
+
+    <div class="fileproto">
+      <b>file:// works too.</b> You can open this page straight from disk (no web
+      server) — the modules load as classic scripts, so <code>file://</code> is fine.
+    </div>
+  </section>
+</main>
+
+<!-- Classic scripts so the page also works when opened directly from disk
+     (file://), where ES module loading is blocked by CORS. -->
+<script src="ndc-diff.js"></script>
+<script src="ndc-report.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (sel) { return document.querySelector(sel); };
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  };
+
+  var SLOTS = ["baseline_rq", "baseline_rs", "new_rs"];
+  var files = {};        // slot -> { name, text }
+  var lastReview = null;
+
+  function setStatus(text) { $("#review-status").textContent = text || ""; }
+
+  function updateButton() {
+    $("#review-btn").disabled = !(files.baseline_rs && files.new_rs);
+  }
+
+  // --- uploads --------------------------------------------------------------
+  SLOTS.forEach(function (slot) {
+    var input = $("#file-" + slot);
+    input.addEventListener("change", function () {
+      var file = input.files[0];
+      if (!file) return;
+      var nameEl = document.querySelector('.file-name[data-for="' + slot + '"]');
+      var reader = new FileReader();
+      reader.onload = function () {
+        var text = String(reader.result || "");
+        // Validate immediately: fail fast with a readable message rather than
+        // only surfacing the problem at compare time.
+        try {
+          NDC.parseXml(text);
+        } catch (err) {
+          files[slot] = null;
+          $("#slot-" + slot).classList.remove("filled");
+          $("#slot-" + slot).classList.add("error");
+          nameEl.className = "file-name err";
+          nameEl.textContent = file.name + " — " + err.message;
+          updateButton();
+          return;
+        }
+        files[slot] = { name: file.name, text: text };
+        $("#slot-" + slot).classList.remove("error");
+        $("#slot-" + slot).classList.add("filled");
+        nameEl.className = "file-name";
+        var root = NDC.parseXml(text);
+        nameEl.textContent = file.name + " → <" + NDC.localname(root.tagName) + ">";
+        setStatus("loaded " + file.name);
+        updateButton();
+      };
+      reader.onerror = function () {
+        nameEl.className = "file-name err";
+        nameEl.textContent = file.name + " — could not read file";
+      };
+      reader.readAsText(file);
+    });
+  });
+
+  // --- sample loader --------------------------------------------------------
+  // Lets a first-time visitor try the tool without hunting for files, and makes
+  // the UI verifiable end to end. Only works when served over HTTP; silently
+  // does nothing from file://, where fetch of local files is blocked.
+  $("#demo-btn").addEventListener("click", async function () {
+    setStatus("loading samples…");
+    async function grab(paths) {
+      for (var i = 0; i < paths.length; i++) {
+        try {
+          var res = await fetch(paths[i]);
+          if (res.ok) return await res.text();
+        } catch (e) { /* try next */ }
+      }
+      return null;
+    }
+    var base = await grab(["../samples/airshopping_rs_baseline.xml", "samples/airshopping_rs_baseline.xml"]);
+    var upd = await grab(["../samples/airshopping_rs_v2.xml", "samples/airshopping_rs_v2.xml"]);
+    var rq = await grab(["../samples/airshopping_rq.xml", "samples/airshopping_rq.xml"]);
+    if (!base || !upd) {
+      setStatus("could not load samples (open this page over http:// rather than file://)");
+      return;
+    }
+    var loaded = [
+      ["baseline_rs", "airshopping_rs_baseline.xml", base],
+      ["new_rs", "airshopping_rs_v2.xml", upd],
+    ];
+    if (rq) loaded.push(["baseline_rq", "airshopping_rq.xml", rq]);
+
+    loaded.forEach(function (entry) {
+      var slot = entry[0], name = entry[1], text = entry[2];
+      files[slot] = { name: name, text: text };
+      $("#slot-" + slot).classList.remove("error");
+      $("#slot-" + slot).classList.add("filled");
+      var nameEl = document.querySelector('.file-name[data-for="' + slot + '"]');
+      nameEl.className = "file-name";
+      nameEl.textContent = name + " → <" + NDC.localname(NDC.parseXml(text).tagName) + ">";
+    });
+    updateButton();
+    setStatus("samples loaded — press Compare responses");
+  });
+
+  $("#clear-btn").addEventListener("click", function () {
+    SLOTS.forEach(function (slot) {
+      files[slot] = null;
+      $("#file-" + slot).value = "";
+      var nameEl = document.querySelector('.file-name[data-for="' + slot + '"]');
+      nameEl.textContent = "";
+      nameEl.className = "file-name";
+      $("#slot-" + slot).classList.remove("filled", "error");
+    });
+    $("#review-output").classList.add("hidden");
+    setStatus("");
+    lastReview = null;
+    updateButton();
+  });
+
+  // --- compare --------------------------------------------------------------
+  $("#review-btn").addEventListener("click", function () {
+    if (!files.baseline_rs || !files.new_rs) return;
+    setStatus("comparing…");
+    $("#review-btn").disabled = true;
+
+    // Defer so the status text paints before a possibly large parse.
+    setTimeout(function () {
+      try {
+        var report = NDC.diffXml(
+          files.baseline_rs.text,
+          files.new_rs.text,
+          files.baseline_rs.name,
+          files.new_rs.name
+        );
+        var baseSummary = NDC.summarizeMessage(
+          NDC.parseXml(files.baseline_rs.text), files.baseline_rs.name
+        );
+        var newSummary = NDC.summarizeMessage(
+          NDC.parseXml(files.new_rs.text), files.new_rs.name
+        );
+        var n = NDCReport.narrative(
+          report, baseSummary.entity_counts, newSummary.entity_counts
+        );
+        var reviewRender = NDCReport.renderReview(
+          report, baseSummary.entity_counts, newSummary.entity_counts
+        );
+
+        lastReview = {
+          report: report,
+          baselineInventory: baseSummary.entity_counts,
+          newInventory: newSummary.entity_counts,
+          narrative: n,
+          reviewRender: reviewRender,
+        };
+        render(report, baseSummary, newSummary, n, reviewRender);
+        setStatus("done");
+      } catch (err) {
+        setStatus("error: " + err.message);
+      } finally {
+        $("#review-btn").disabled = false;
+      }
+    }, 0);
+  });
+
+  function render(report, baseSummary, newSummary, narrativeText, reviewRender) {
+    $("#review-output").classList.remove("hidden");
+    $("#narrative").textContent = narrativeText;
+
+    var base = baseSummary.entity_counts || {};
+    var inv = newSummary.entity_counts || {};
+    var keys = Object.keys(base).concat(
+      Object.keys(inv).filter(function (k) { return !(k in base); })
+    );
+    $("#counts").innerHTML = keys.map(function (k) {
+      var b = base[k] || 0, n = inv[k] || 0;
+      var arrow = n === b ? "" : (n < b ? " ↓" : " ↑");
+      return '<span class="chip">' + esc(k) + ': <b>' + b + " → " + n + "</b>" + arrow + "</span>";
+    }).join("");
+
+    var rows = [];
+    report.entities_removed.forEach(function (e) {
+      rows.push('<tr><td><span class="tag missing">MISSING</span></td><td>' + esc(e.entity) +
+        '</td><td><code>' + esc(e.key) + "</code></td><td>removed from the new response</td></tr>");
+    });
+    report.entities_added.forEach(function (e) {
+      rows.push('<tr><td><span class="tag extra">EXTRA</span></td><td>' + esc(e.entity) +
+        '</td><td><code>' + esc(e.key) + "</code></td><td>newly added</td></tr>");
+    });
+    report.entities_modified.forEach(function (e) {
+      var detail = (e.missing || []).map(function (m) {
+        return '<div><span class="tag missing">was</span> <code>' + esc(m) + "</code></div>";
+      }).concat((e.extra || []).map(function (x) {
+        return '<div><span class="tag extra">now</span> <code>' + esc(x) + "</code></div>";
+      })).join("");
+      rows.push('<tr><td><span class="tag modified">CHANGED</span></td><td>' + esc(e.entity) +
+        '</td><td><code>' + esc(e.key) + "</code></td><td>" + detail + "</td></tr>");
+    });
+    $("#entity-rows").innerHTML = rows.join("") ||
+      '<tr><td colspan="4" class="status">No entity-level differences.</td></tr>';
+
+    var nodeRows = Object.keys(report.missing_nodes).map(function (p) {
+      return '<tr><td><span class="tag missing">MISSING</span></td><td><code>' + esc(p) +
+        "</code></td><td>" + report.missing_nodes[p] + "</td></tr>";
+    }).concat(Object.keys(report.extra_nodes).map(function (p) {
+      return '<tr><td><span class="tag extra">EXTRA</span></td><td><code>' + esc(p) +
+        "</code></td><td>" + report.extra_nodes[p] + "</td></tr>";
+    }));
+    $("#node-rows").innerHTML = nodeRows.join("") ||
+      '<tr><td colspan="3" class="status">No node-path differences.</td></tr>';
+
+    $("#value-rows").innerHTML = report.value_diffs.map(function (v) {
+      return "<tr><td><code>" + esc(v.path) + "</code></td><td>" +
+        (v.missing_values || []).map(function (x) { return "<code>" + esc(x) + "</code>"; }).join("<br>") +
+        "</td><td>" +
+        (v.extra_values || []).map(function (x) { return "<code>" + esc(x) + "</code>"; }).join("<br>") +
+        "</td></tr>";
+    }).join("") || '<tr><td colspan="3" class="status">No value changes.</td></tr>';
+
+    $("#full-report").textContent = reviewRender;
+  }
+
+  // --- export ---------------------------------------------------------------
+  $("#copy-btn").addEventListener("click", function () {
+    if (!lastReview) return;
+    var text = $("#full-report").textContent;
+    navigator.clipboard.writeText(text).then(
+      function () { setStatus("report copied"); },
+      function () { setStatus("copy failed — select the text manually"); }
+    );
+  });
+
+  $("#download-json-btn").addEventListener("click", function () {
+    if (!lastReview) return;
+    var payload = {
+      base: lastReview.report.base,
+      new: lastReview.report.new,
+      identical: lastReview.report.identical,
+      missing_nodes: lastReview.report.missing_nodes,
+      extra_nodes: lastReview.report.extra_nodes,
+      value_diffs: lastReview.report.value_diffs,
+      entities_removed: lastReview.report.entities_removed,
+      entities_added: lastReview.report.entities_added,
+      entities_modified: lastReview.report.entities_modified,
+      baseline_inventory: lastReview.baselineInventory,
+      new_inventory: lastReview.newInventory,
+      narrative: lastReview.narrative,
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "ndc-diff-report.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+})();
+</script>
+</body>
+</html>
