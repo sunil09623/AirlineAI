@@ -157,6 +157,21 @@ function renderReport(report, maxItems = 40) {
     }
   }
 
+  const session = report.session_metadata || [];
+  if (session.length) {
+    lines.push(
+      "\nSession metadata (regenerated per response - not content changes):"
+    );
+    for (const v of session.slice(0, maxItems)) {
+      for (const mv of (v.missing_values || []).slice(0, 5)) {
+        lines.push(`    ${v.path}: was '${mv}'`);
+      }
+      for (const xv of (v.extra_values || []).slice(0, 5)) {
+        lines.push(`    ${v.path}: now '${xv}'`);
+      }
+    }
+  }
+
   return lines.join("\n");
 }
 

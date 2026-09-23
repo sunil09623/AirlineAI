@@ -22,26 +22,64 @@ Two complementary passes:
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from lxml import etree
 
 from airshop.ndc.xmlutil import localname
 
-# ID-bearing NDC collections: element name -> child element holding its key.
+# ID-bearing NDC collections: element name -> where its identifying value lives.
+#
+# A value starting with "@" names an attribute; anything else names a child
+# element. Both forms occur in real payloads — for example carriers emit
+# BaggageAllowance/@BaggageAllowanceID (attribute) but Offer/OfferID (child) —
+# and a key that is declared as a child element still falls back to an attribute
+# of the same name, because implementations vary.
 ENTITY_KEYS: dict[str, str] = {
     "Offer": "OfferID",
     "OfferItem": "OfferItemID",
     "FlightSegment": "SegmentID",
+    "PaxSegment": "PaxSegmentID",
     "Fare": "FareCode",
+    "FareGroup": "@ListKey",
+    "FareItem": "FareItemID",
+    "FareComponent": "FareComponentID",
     "Pax": "PaxID",
     "OriginDest": "OriginDestID",
     "Order": "OrderID",
     "PaxJourney": "PaxJourneyID",
     "PriceClass": "PriceClassID",
     "BaggageAllowance": "BaggageAllowanceID",
+    "Service": "ServiceID",
+    "ServiceDefinition": "ServiceDefinitionID",
+    "Penalty": "PenaltyID",
+    "Disclosure": "@ListKey",
+    "Media": "MediaID",
+    "ContactInfo": "ContactInfoID",
 }
+
+# Minimum length of a shared trailing fragment before it is treated as a
+# per-response session token rather than meaningful data. Short shared suffixes
+# are common in ordinary keys (e.g. "SEG1", "SEG2" share nothing; "IT1"... ),
+# so stripping them would be wrong.
+CHURN_SUFFIX_MIN_LEN = 6
+
+# Fields that are regenerated on every response by definition (transport and
+# session metadata, not business content). Comparing two responses always shows
+# these as different, which is noise: they are reported separately as session
+# metadata so genuine content changes stay visible.
+VOLATILE_FIELDS: frozenset[str] = frozenset(
+    {
+        "Timestamp",
+        "TrxID",
+        "CorrelationID",
+        "EchoTokenText",
+        "SequenceNumber",
+        "TransactionID",
+        "RequestID",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -177,9 +215,11 @@ class DiffReport:
     entities_removed: list[EntityDiff] = field(default_factory=list)
     entities_added: list[EntityDiff] = field(default_factory=list)
     entities_modified: list[EntityDiff] = field(default_factory=list)
+    session_metadata: list[ValueDiff] = field(default_factory=list)
 
     @property
     def identical(self) -> bool:
+        """True when nothing of substance differs (session metadata aside)."""
         return not (
             self.counts_missing
             or self.counts_extra
@@ -200,6 +240,7 @@ class DiffReport:
             "entities_removed": [e.to_dict() for e in self.entities_removed],
             "entities_added": [e.to_dict() for e in self.entities_added],
             "entities_modified": [e.to_dict() for e in self.entities_modified],
+            "session_metadata": [v.to_dict() for v in self.session_metadata],
         }
 
     def render(self, max_items: int = 40) -> str:
@@ -248,6 +289,16 @@ class DiffReport:
                     lines.append(f"  - {v.path}: {mv!r} no longer present")
                 for xv in v.extra_values[:10]:
                     lines.append(f"  + {v.path}: {xv!r} newly present")
+
+        if self.session_metadata:
+            lines.append(
+                "\nSession metadata (regenerated per response — not content changes):"
+            )
+            for v in self.session_metadata[:max_items]:
+                for mv in v.missing_values[:5]:
+                    lines.append(f"    {v.path}: was {mv!r}")
+                for xv in v.extra_values[:5]:
+                    lines.append(f"    {v.path}: now {xv!r}")
 
         return "\n".join(lines)
 
@@ -299,34 +350,183 @@ def _flatten_entity(entity_el: etree._Element) -> list[NodeRecord]:
     return records
 
 
+def collect_entity_ids(root: etree._Element) -> dict[str, list[str]]:
+    """Raw identifying value per ID-bearing element, keyed by element tag.
+
+    Reads an attribute when the mapping says so (``@ListKey``), otherwise a child
+    element — and falls back to an attribute of the same name, because carriers
+    differ on which they use.
+    """
+    found: dict[str, list[str]] = {}
+    for element in root.iter():
+        if not isinstance(element.tag, str):
+            continue
+        tag = localname(element.tag)
+        spec = ENTITY_KEYS.get(tag)
+        if spec is None:
+            continue
+
+        value: str | None = None
+        if spec.startswith("@"):
+            value = element.get(spec[1:])
+        else:
+            for child in element:
+                if isinstance(child.tag, str) and localname(child.tag) == spec:
+                    value = (child.text or "").strip() or None
+                    break
+            if value is None:
+                # Some carriers carry the key as an attribute instead.
+                value = element.get(spec)
+        if value:
+            found.setdefault(tag, []).append(value.strip())
+    return found
+
+
+def churn_suffix(values: list[str]) -> str:
+    """Longest trailing fragment shared by every value, if it looks like a token.
+
+    Carriers regenerate the tail of each identifier on every response (a session
+    token), which would otherwise make every entity look removed-and-added. The
+    shared tail is what identifies that churn; returning it lets the caller strip
+    it.
+
+    The only guard needed is a minimum length: short shared tails are ordinary in
+    real keys (``IT1``/``IT2`` share nothing, but ``AB1``/``CB1`` share ``B1``),
+    so stripping those would corrupt genuine data. Removing a common suffix can
+    never make two distinct values equal — if ``a`` and ``b`` differ somewhere in
+    their retained prefixes then so do ``a - S`` and ``b - S`` — so no separate
+    collision check is required.
+    """
+    if len(values) < 2:
+        return ""
+    # Cap the scan just under the shortest value so at least one character of
+    # each identifier is always retained.
+    limit = min(len(v) for v in values) - 1
+    if limit < CHURN_SUFFIX_MIN_LEN:
+        return ""
+
+    suffix = ""
+    for offset in range(1, limit + 1):
+        candidate = values[0][-offset:]
+        if all(v.endswith(candidate) for v in values):
+            suffix = candidate
+        else:
+            break
+
+    return suffix if len(suffix) >= CHURN_SUFFIX_MIN_LEN else ""
+
+
+def normalise_entity_keys(
+    ids: dict[str, list[str]],
+) -> dict[str, str]:
+    """Map each raw id to its churn-stripped form, per entity type."""
+    mapping: dict[str, str] = {}
+    for values in ids.values():
+        suffix = churn_suffix(values)
+        for value in values:
+            mapping[value] = value[: len(value) - len(suffix)] if suffix else value
+    return mapping
+
+
+def identifier_suffixes(ids: dict[str, list[str]]) -> dict[str, set[str]]:
+    """Map a tag-path *suffix* to the raw id values that identify it there.
+
+    ``struct`` values are full tag paths such as
+    ``AirShoppingRS/DataLists/FareList/FareGroup/@ListKey``, while the entity map
+    is keyed by bare tag, so match on the trailing segment. Both the attribute
+    form (``@ListKey``) and the child-element form (``OfferID``) are covered,
+    because the same logical key appears both ways across carriers.
+    """
+    suffixes: dict[str, set[str]] = {}
+    for tag, values in ids.items():
+        spec = ENTITY_KEYS[tag]
+        name = spec[1:] if spec.startswith("@") else spec
+        for suffix in (f"{tag}/@{name}", f"{tag}/{name}"):
+            suffixes.setdefault(suffix, set()).update(values)
+    return suffixes
+
+
+def apply_id_normalisation(
+    records: list[NodeRecord],
+    ids: dict[str, list[str]],
+    normalised: dict[str, str],
+) -> list[NodeRecord]:
+    """Rewrite churning identifier values to their stable form.
+
+    Without this the structural pass sees every regenerated identifier as a
+    changed value, so a response that merely reissued its session tokens reports
+    a wall of "no longer present / newly present" lines.
+    """
+    suffixes = identifier_suffixes(ids)
+    out: list[NodeRecord] = []
+    for record in records:
+        rewritten = record.value
+        if record.struct.endswith(tuple(suffixes)):
+            for suffix, candidates in suffixes.items():
+                if record.struct.endswith(suffix) and record.value in candidates:
+                    rewritten = normalised.get(record.value, record.value)
+                    break
+        out.append(replace(record, value=rewritten) if rewritten != record.value else record)
+    return out
+
+
 def _entities(root: etree._Element) -> dict[tuple[str, str], list[NodeRecord]]:
-    """Collect ID-bearing entities keyed by (element name, id value)."""
+    """Collect ID-bearing entities keyed by (element name, normalised id)."""
+    ids = collect_entity_ids(root)
+    normalised = normalise_entity_keys(ids)
+
     entities: dict[tuple[str, str], list[NodeRecord]] = {}
     for element in root.iter():
         if not isinstance(element.tag, str):
             continue
         tag = localname(element.tag)
-        id_child = ENTITY_KEYS.get(tag)
-        if id_child is None:
+        spec = ENTITY_KEYS.get(tag)
+        if spec is None:
             continue
-        key: str | None = None
-        for child in element:
-            if isinstance(child.tag, str) and localname(child.tag) == id_child:
-                key = (child.text or "").strip() or None
-                break
-        if not key:
+
+        raw = _identifier_value(element, spec)
+        if not raw:
             continue
-        # Keep every record describing the entity except the ID itself, so two
-        # instances with the same ID compare field-by-field without the ID
-        # showing up as a difference.
-        id_struct = f"{tag}/{id_child}"
+        key = normalised.get(raw, raw)
+
+        # Keep every record describing the entity except its own identifier, so
+        # two instances with the same id compare field-by-field.
+        id_name = spec[1:] if spec.startswith("@") else spec
         scoped = [
             record
             for record in _flatten_entity(element)
-            if not (record.struct == id_struct and record.value == key)
+            if not _is_identifier_record(record, tag, id_name, raw)
         ]
         entities.setdefault((tag, key), []).extend(scoped)
     return entities
+
+
+def _identifier_value(element: etree._Element, spec: str) -> str | None:
+    """Read an element's identifying value per its ENTITY_KEYS specification."""
+    if spec.startswith("@"):
+        value = element.get(spec[1:])
+    else:
+        value = None
+        for child in element:
+            if isinstance(child.tag, str) and localname(child.tag) == spec:
+                value = (child.text or "").strip() or None
+                break
+        if value is None:
+            # Some carriers carry the key as an attribute instead.
+            value = element.get(spec)
+    return value.strip() if value else None
+
+
+def _is_identifier_record(
+    record: NodeRecord, tag: str, id_name: str, raw_value: str
+) -> bool:
+    """Whether a record is the entity's own identifier rather than a field."""
+    if record.value != raw_value:
+        return False
+    return record.struct in (
+        f"{tag}/{id_name}",  # child element form
+        f"{tag}/@{id_name}",  # attribute form
+    )
 
 
 def _entity_value_map(records: list[NodeRecord]) -> Counter[tuple[str, str]]:
@@ -346,8 +546,17 @@ def diff_xml(
     report = DiffReport(base_label=base_label, new_label=new_label)
 
     # --- structural pass ---------------------------------------------------- #
-    base_records = flatten(base_root)
-    new_records = flatten(new_root)
+    # Identifiers whose trailing token is regenerated per response are rewritten
+    # to their stable form before any comparison, otherwise every reissued id
+    # would masquerade as a value change.
+    base_ids = collect_entity_ids(base_root)
+    new_ids = collect_entity_ids(new_root)
+    base_records = apply_id_normalisation(
+        flatten(base_root), base_ids, normalise_entity_keys(base_ids)
+    )
+    new_records = apply_id_normalisation(
+        flatten(new_root), new_ids, normalise_entity_keys(new_ids)
+    )
 
     base_struct = Counter(r.struct for r in base_records)
     new_struct = Counter(r.struct for r in new_records)
@@ -438,25 +647,23 @@ def diff_xml(
             if not any(f"/{tag}/" in f"{v.struct}/" for tag in churned_entity_tags)
         ]
 
+    # Session/transport metadata is regenerated on every response by definition,
+    # so it is separated out rather than reported as content churn.
+    content_diffs: list[ValueDiff] = []
+    for value_diff in report.value_diffs:
+        if value_diff.struct.split("/")[-1].lstrip("@") in VOLATILE_FIELDS:
+            report.session_metadata.append(value_diff)
+        else:
+            content_diffs.append(value_diff)
+    report.value_diffs = content_diffs
+
     return report
 
 
 def summarize_message(xml: str | bytes, label: str = "message") -> dict[str, Any]:
     """Inventory of an NDC message: root, offer/segment counts and IDs."""
     root = _parse(xml)
-    entities: dict[str, list[str]] = {}
-    for element in root.iter():
-        if not isinstance(element.tag, str):
-            continue
-        tag = localname(element.tag)
-        id_child = ENTITY_KEYS.get(tag)
-        if id_child is None:
-            continue
-        for child in element:
-            if isinstance(child.tag, str) and localname(child.tag) == id_child:
-                value = (child.text or "").strip()
-                if value:
-                    entities.setdefault(tag, []).append(value)
+    entities = collect_entity_ids(root)
 
     return {
         "label": label,

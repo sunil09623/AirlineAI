@@ -1,4 +1,4 @@
-# NDC AirShopping Reviewer — offline local agent
+# Airline-CMP — offline local agent
 
 A local, completely offline agent for IATA NDC AirShopping messages. Its main job
 is to take a baseline `AirShoppingRQ` + `AirShoppingRS` and a newly uploaded second
@@ -7,6 +7,10 @@ is to take a baseline `AirShoppingRQ` + `AirShoppingRS` and a newly uploaded sec
 Works with no internet. The deterministic comparison path needs no LLM at all; the
 optional chat layer runs against a local Ollama model.
 
+> **No Python available?** There is also a browser-only build under `web/` that
+> needs no install, no server and no network at all — download five files, open
+> `index.html`. See [`web/README.md`](web/README.md).
+
 ## What it does
 
 | Capability | Needs a model? | Needs network? |
@@ -14,7 +18,14 @@ optional chat layer runs against a local Ollama model.
 | Upload and diff NDC XML in the browser | no | no |
 | `airshop --compare a b` CLI diff | no | no |
 | Generate AirShoppingRQ/RS locally | no | no |
+| Detect trip-type and passenger changes | no | no |
 | Chat explanation of a diff | yes (local Ollama) | no |
+
+The diff also distinguishes **session metadata** (timestamps, transaction IDs)
+from content: those fields are regenerated on every response, so they are reported
+separately rather than as changes. Churning reference IDs are normalised to their
+stable prefix, so a response that merely reissued its tokens reports as identical
+while a genuine addition still stands out.
 
 ## Install
 
@@ -133,13 +144,15 @@ Environment variables:
 
 ```
 src/airshop/
-  ndc/          models, XML parser + builder, shopping engine, validator, diff, catalog
+  ndc/          models, XML parser + builder, shopping engine, validator, diff,
+                catalog, trip (trip-shape and passenger comparison)
   tools/        OpenHands SDK custom tools (airshopping, upload, compare, ...)
   agent/        local agent builder + CLI
-  web/          FastAPI app + single-page UI
+  web/          FastAPI app + single-page UI  (web/ also holds the browser-only build)
   training/     verifiable training-data generator
   offline.py    no-egress enforcement
-tests/          40 tests covering the pipeline, diff, and web API
+tests/          63 tests covering the pipeline, diff, trip/pax and web API
+web/            browser-only build: no install, no server, no network
 ```
 
 ## Agent tools

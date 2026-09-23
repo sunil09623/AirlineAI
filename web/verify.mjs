@@ -157,6 +157,161 @@ const reordered = baseline.replace(
 const reorderReport = diffXml(baseline, reordered, "a", "b");
 check("reordering offers is not a difference", reorderReport.identical, true);
 
+// --- churning reference-id coverage -------------------------------------- //
+// Real carriers regenerate the tail of each identifier per response. That churn
+// must not be reported as content change, while a genuine addition still is.
+const { churnSuffix, normaliseEntityKeys } = NDC;
+
+check(
+  "churnSuffix finds the per-response token",
+  churnSuffix(["Xbga0600210b3be03", "Xbga1900210b3be03"]),
+  "00210b3be03"
+);
+check("churnSuffix ignores ordinary keys", churnSuffix(["SEG1", "SEG2_1"]), "");
+check(
+  "normalisation keeps distinct entities distinct",
+  Object.keys(
+    Object.fromEntries(
+      Object.entries(
+        normaliseEntityKeys({ BaggageAllowance: ["Xbga0600210b3be03", "Xbga1900210b3be03"] })
+      ).map(([, v]) => [v, true])
+    )
+  ).length,
+  2
+);
+
+function churnDoc(suffix, extra) {
+  const bgas = [
+    `<BaggageAllowance BaggageAllowanceID="Xbga0600${suffix}"><Type>Checked</Type></BaggageAllowance>`,
+    `<BaggageAllowance BaggageAllowanceID="Xbga1900${suffix}"><Type>Checked</Type></BaggageAllowance>`,
+  ];
+  if (extra) {
+    bgas.push(
+      `<BaggageAllowance BaggageAllowanceID="Xbga9900${suffix}"><Type>CarryOn</Type></BaggageAllowance>`
+    );
+  }
+  const fares = ["09", "0e", "11"]
+    .map(
+      (k) =>
+        `<FareGroup ListKey="Xfbc${k}00${suffix}"><FareBasisCode>${k.toUpperCase()}</FareBasisCode></FareGroup>`
+    )
+    .join("");
+  return (
+    `<AirShoppingRS><DataLists>` +
+    `<BaggageAllowanceList>${bgas.join("")}</BaggageAllowanceList>` +
+    `<FareList>${fares}</FareList>` +
+    `</DataLists></AirShoppingRS>`
+  );
+}
+
+const churnA = churnDoc("210b3be03", false);
+const churnB = churnDoc("0a0b3c8d7", false);
+const churnC = churnDoc("0a0b3c8d7", true);
+const pureChurn = diffXml(churnA, churnB, "old", "new");
+const churnPlusAdd = diffXml(churnA, churnC, "old", "new");
+
+check("pure id churn is not a difference", pureChurn.identical, true);
+check("pure id churn yields no value diffs", pureChurn.value_diffs, []);
+check(
+  "genuine addition still surfaces after churn is stripped",
+  churnPlusAdd.entities_added.map((e) => e.key),
+  ["Xbga99"]
+);
+check("genuine addition is not identical", churnPlusAdd.identical, false);
+
+// Volatile session fields are reported separately, not as content churn.
+const volA =
+  '<AirShoppingRS><PayloadAttributes><Timestamp>2026-01-01T00:00:00Z</Timestamp></PayloadAttributes></AirShoppingRS>';
+const volB =
+  '<AirShoppingRS><PayloadAttributes><Timestamp>2026-01-02T00:00:00Z</Timestamp></PayloadAttributes></AirShoppingRS>';
+const volReport = diffXml(volA, volB, "a", "b");
+check("timestamp-only change is identical", volReport.identical, true);
+check("timestamp is classed as session metadata", volReport.session_metadata.length, 1);
+
+// --- trip / passenger parity with the Python implementation ---------------- //
+const NDCTrip = require("./ndc-trip.js");
+const NDCChat = require("./ndc-chat.js");
+
+function rqXml(pax, legs, cabin) {
+  const travelers = pax
+    .map((p, i) => `<Pax><PaxID>${p}${i + 1}</PaxID><PTC>${p}</PTC></Pax>`)
+    .join("");
+  const ods = legs
+    .map(
+      (l) =>
+        `<OriginDest><OriginCode>${l[0]}</OriginCode><DestCode>${l[1]}</DestCode>` +
+        `<DepartureDate>${l[2]}</DepartureDate><CabinTypeName>${cabin}</CabinTypeName></OriginDest>`
+    )
+    .join("");
+  return (
+    `<AirShoppingRQ><PayloadAttributes><TrxID>T1</TrxID></PayloadAttributes>` +
+    `<Request><FlightRequest>${ods}</FlightRequest><PaxList>${travelers}</PaxList>` +
+    `<ShoppingCriteria><CurParameter><CurCode>USD</CurCode></CurParameter></ShoppingCriteria>` +
+    `</Request></AirShoppingRQ>`
+  );
+}
+
+const rqOneWay = rqXml(["ADT"], [["LHR", "JFK", "2027-03-15"]], "Economy");
+const rqRound = rqXml(
+  ["ADT", "ADT", "CHD"],
+  [["LHR", "JFK", "2027-03-15"], ["JFK", "LHR", "2027-03-22"]],
+  "Business"
+);
+const rqMulti = rqXml(
+  ["ADT"],
+  [["LHR", "JFK", "2027-03-15"], ["JFK", "CDG", "2027-03-20"], ["CDG", "LHR", "2027-03-25"]],
+  "Economy"
+);
+
+const shapeOneWay = NDCTrip.tripShapeFromRq(NDC.parseXml(rqOneWay));
+const shapeRound = NDCTrip.tripShapeFromRq(NDC.parseXml(rqRound));
+const shapeMulti = NDCTrip.tripShapeFromRq(NDC.parseXml(rqMulti));
+
+check("one-way classified", shapeOneWay.trip_type, "one-way");
+check("round-trip classified", shapeRound.trip_type, "round-trip");
+check("multi-city classified", shapeMulti.trip_type, "multi-city");
+check("pax mix read", shapeRound.pax, { ADT: 2, CHD: 1 });
+check("pax total read", shapeRound.pax_total, 3);
+check("cabin read", shapeRound.cabin, "Business");
+check("currency read", shapeRound.currency, "USD");
+
+const tripChange = NDCTrip.compareTripShape(shapeOneWay, shapeRound);
+check("trip type change detected", tripChange.trip_type_changed, true);
+check("added leg detected", tripChange.legs_added, ["JFK->LHR on 2027-03-22"]);
+check("pax additions detected", tripChange.pax_added, { ADT: 1, CHD: 1 });
+check("cabin change detected", tripChange.cabin_changed, ["Economy", "Business"]);
+check("unchanged trip reports unchanged", NDCTrip.compareTripShape(shapeOneWay, NDCTrip.tripShapeFromRq(NDC.parseXml(rqOneWay))).changed, false);
+
+// --- chat answers are grounded in the report ------------------------------ //
+const chatCtx = {
+  report: report,
+  narrative: narrative(report, baselineSummary.entity_counts, newSummary.entity_counts),
+  baselineInventory: baselineSummary.entity_counts,
+  newInventory: newSummary.entity_counts,
+  tripChange: tripChange,
+};
+
+check(
+  "chat summary matches narrative",
+  NDCChat.answer("give me a summary", chatCtx),
+  chatCtx.narrative
+);
+check(
+  "chat reports missing offers",
+  NDCChat.answer("what is missing?", chatCtx).indexOf("IT4") !== -1,
+  true
+);
+check(
+  "chat rejects unmapped questions helpfully",
+  NDCChat.answer("what is the weather", chatCtx).indexOf("could not map") !== -1,
+  true
+);
+check(
+  "chat handles no-report state",
+  NDCChat.answer("summary", null).indexOf("Upload") !== -1,
+  true
+);
+
 console.log(
   failures === 0
     ? "\nAll checks passed: the JS engine matches the Python reference.\n"

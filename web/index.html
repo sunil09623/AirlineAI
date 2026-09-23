@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NDC AirShopping Reviewer — offline, browser-only</title>
+<title>Airline-CMP — offline AirShopping release comparison</title>
 <style>
   :root {
     --bg: #0f1115;
@@ -27,18 +27,26 @@
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     background: var(--panel);
   }
-  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: .3px; }
+  header .sub { color: var(--muted); font-size: 12px; }
   .badge {
     font-size: 11px; padding: 3px 8px; border-radius: 999px;
     border: 1px solid #24603a; color: var(--extra);
   }
-  main { padding: 18px 20px 48px; max-width: 1100px; }
+  nav { display: flex; gap: 4px; padding: 10px 20px 0; }
+  nav button {
+    background: transparent; color: var(--muted); border: 1px solid transparent;
+    border-bottom: none; padding: 8px 14px; cursor: pointer; font-size: 13px;
+    border-radius: 8px 8px 0 0;
+  }
+  nav button.active { background: var(--panel); color: var(--text); border-color: var(--line); }
+  main { padding: 0 20px 48px; max-width: 1100px; }
   .panel {
     background: var(--panel); border: 1px solid var(--line);
-    border-radius: 10px; padding: 18px;
+    border-radius: 0 10px 10px 10px; padding: 18px;
   }
-  .status { color: var(--muted); font-size: 12.5px; margin: 0 0 16px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .status { color: var(--muted); font-size: 12.5px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
   .slot {
     background: var(--panel-2); border: 1px dashed var(--line);
     border-radius: 10px; padding: 14px;
@@ -84,50 +92,73 @@
   .tag.missing, .tag.removed { background: #3a1d1d; color: var(--missing); }
   .tag.extra, .tag.added { background: #14301f; color: var(--extra); }
   .tag.modified { background: #33280d; color: var(--changed); }
+  .tag.session { background: #1d2433; color: var(--accent); }
   pre {
     background: #0d1016; border: 1px solid var(--line); border-radius: 8px;
     padding: 14px; overflow: auto; max-height: 460px; font-size: 12px; color: #c8d0dc;
   }
   .hidden { display: none; }
-  .fileproto {
-    margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line);
-    color: var(--muted); font-size: 12px;
+  .trip-box {
+    margin-top: 14px; padding: 12px 14px; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 8px; font-size: 13px;
   }
-  .fileproto b { color: var(--text); }
+  .trip-box.changed { border-color: #6b4b12; }
+  .chat-log { min-height: 240px; max-height: 420px; overflow-y: auto; padding-right: 6px; }
+  .msg { margin: 0 0 14px; }
+  .msg .who { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .6px; }
+  .msg .body { white-space: pre-wrap; font-size: 13px; }
+  .msg.you .body { color: var(--accent); }
+  textarea {
+    width: 100%; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+    font: inherit; resize: vertical; min-height: 70px;
+  }
+  .suggestions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .suggestions button {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
+    border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer;
+  }
+  .suggestions button:hover { color: var(--text); }
 </style>
 </head>
 <body>
 <header>
-  <h1>NDC AirShopping Reviewer</h1>
-  <span class="badge">100% offline · no install · nothing uploaded</span>
+  <h1>Airline-CMP</h1>
+  <span class="sub">offline AirShopping release comparison</span>
+  <span class="badge">no install · no network · files never leave this machine</span>
 </header>
 
+<nav>
+  <button class="active" data-tab="review">Review &amp; diff</button>
+  <button data-tab="chat">Chat</button>
+</nav>
+
 <main>
-  <section class="panel">
+  <section class="panel" id="tab-review">
     <p class="status">
-      Drop in the baseline <b>AirShoppingRS</b> and the new one to see exactly what is
-      missing and what is extra. The optional <b>AirShoppingRQ</b> adds request context.
-      Files are read in this browser tab and never leave your machine.
+      Load the baseline <b>AirShoppingRS</b> and the new one to see exactly what is missing and what is
+      extra. The <b>AirShoppingRQ</b> is optional and adds trip-shape and passenger context. The
+      baseline is kept in this browser until you clear it.
     </p>
 
     <div class="grid">
       <div class="slot" id="slot-baseline_rq">
         <h3>1. AirShoppingRQ <span class="badge" style="border-color:#2b303b;color:#9aa4b2">optional</span></h3>
-        <p>The original request, for context.</p>
+        <p>Trip shape and passenger mix.</p>
         <input type="file" id="file-baseline_rq" accept=".xml,text/xml,application/xml" />
         <label class="pick" for="file-baseline_rq">Choose file</label>
         <div class="file-name" data-for="baseline_rq"></div>
       </div>
       <div class="slot" id="slot-baseline_rs">
         <h3>2. Baseline AirShoppingRS</h3>
-        <p>The first response, your reference.</p>
+        <p>The previous release.</p>
         <input type="file" id="file-baseline_rs" accept=".xml,text/xml,application/xml" />
         <label class="pick" for="file-baseline_rs">Choose file</label>
         <div class="file-name" data-for="baseline_rs"></div>
       </div>
       <div class="slot" id="slot-new_rs">
         <h3>3. New AirShoppingRS</h3>
-        <p>The second response to compare.</p>
+        <p>The release under review.</p>
         <input type="file" id="file-new_rs" accept=".xml,text/xml,application/xml" />
         <label class="pick" for="file-new_rs">Choose file</label>
         <div class="file-name" data-for="new_rs"></div>
@@ -136,13 +167,13 @@
 
     <div class="row">
       <button class="primary" id="review-btn" disabled>Compare responses</button>
-      <button class="ghost" id="clear-btn">Clear</button>
-      <button class="ghost" id="demo-btn">Load sample files</button>
+      <button class="ghost" id="clear-btn">Clear all</button>
       <span class="status" id="review-status"></span>
     </div>
 
     <div id="review-output" class="hidden">
       <div class="narrative" id="narrative"></div>
+      <div class="trip-box" id="trip-box"></div>
 
       <h2>Counts</h2>
       <div class="counts" id="counts"></div>
@@ -165,6 +196,12 @@
         <tbody id="value-rows"></tbody>
       </table>
 
+      <h2>Session metadata <span class="status">(regenerated each response — not content changes)</span></h2>
+      <table>
+        <thead><tr><th>Path</th><th>Was</th><th>Now</th></tr></thead>
+        <tbody id="session-rows"></tbody>
+      </table>
+
       <h2>Full report</h2>
       <pre id="full-report"></pre>
 
@@ -173,11 +210,22 @@
         <button class="ghost" id="download-json-btn">Download JSON</button>
       </div>
     </div>
+  </section>
 
-    <div class="fileproto">
-      <b>file:// works too.</b> You can open this page straight from disk (no web
-      server) — the modules load as classic scripts, so <code>file://</code> is fine.
+  <section class="panel hidden" id="tab-chat">
+    <p class="status">
+      Ask about the comparison you just ran. Answers are computed offline from the diff itself,
+      so they cannot disagree with the Review tab.
+    </p>
+    <div class="chat-log" id="chat-log"></div>
+    <div class="row">
+      <textarea id="chat-input" placeholder="e.g. what is missing? did the trip type change?"></textarea>
     </div>
+    <div class="row">
+      <button class="primary" id="chat-send">Send</button>
+      <span class="status" id="chat-status"></span>
+    </div>
+    <div class="suggestions" id="suggestions"></div>
   </section>
 </main>
 
@@ -185,6 +233,8 @@
      (file://), where ES module loading is blocked by CORS. -->
 <script src="ndc-diff.js"></script>
 <script src="ndc-report.js"></script>
+<script src="ndc-trip.js"></script>
+<script src="ndc-chat.js"></script>
 <script>
 (function () {
   "use strict";
@@ -197,6 +247,7 @@
   };
 
   var SLOTS = ["baseline_rq", "baseline_rs", "new_rs"];
+  var STORAGE_KEY = "airline-cmp.baseline.v1";
   var files = {};        // slot -> { name, text }
   var lastReview = null;
 
@@ -205,6 +256,56 @@
   function updateButton() {
     $("#review-btn").disabled = !(files.baseline_rs && files.new_rs);
   }
+
+  // --- baseline persistence -------------------------------------------------
+  // The baseline and request are retained until explicitly cleared, so a new
+  // release response can be dropped in without re-loading the reference.
+  function persistBaseline() {
+    try {
+      var payload = {};
+      SLOTS.forEach(function (slot) {
+        if (files[slot]) payload[slot] = files[slot];
+      });
+      if (Object.keys(payload).length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch (e) {
+      // Storage may be unavailable (private mode, file:// restrictions).
+      setStatus("note: browser storage unavailable, files will not be retained");
+    }
+  }
+
+  function restoreBaseline() {
+    var raw = null;
+    try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { return; }
+    if (!raw) return;
+    var payload;
+    try { payload = JSON.parse(raw); } catch (e) { return; }
+    SLOTS.forEach(function (slot) {
+      var entry = payload[slot];
+      if (!entry || !entry.text) return;
+      try { NDC.parseXml(entry.text); } catch (e) { return; }
+      files[slot] = entry;
+      $("#slot-" + slot).classList.add("filled");
+      var nameEl = document.querySelector('.file-name[data-for="' + slot + '"]');
+      nameEl.className = "file-name";
+      nameEl.textContent = entry.name + " (retained)";
+    });
+    updateButton();
+  }
+
+  // --- tabs -----------------------------------------------------------------
+  document.querySelectorAll("nav button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll("nav button").forEach(function (b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      var tab = btn.dataset.tab;
+      $("#tab-review").classList.toggle("hidden", tab !== "review");
+      $("#tab-chat").classList.toggle("hidden", tab !== "chat");
+    });
+  });
 
   // --- uploads --------------------------------------------------------------
   SLOTS.forEach(function (slot) {
@@ -216,8 +317,6 @@
       var reader = new FileReader();
       reader.onload = function () {
         var text = String(reader.result || "");
-        // Validate immediately: fail fast with a readable message rather than
-        // only surfacing the problem at compare time.
         try {
           NDC.parseXml(text);
         } catch (err) {
@@ -226,6 +325,7 @@
           $("#slot-" + slot).classList.add("error");
           nameEl.className = "file-name err";
           nameEl.textContent = file.name + " — " + err.message;
+          persistBaseline();
           updateButton();
           return;
         }
@@ -233,9 +333,9 @@
         $("#slot-" + slot).classList.remove("error");
         $("#slot-" + slot).classList.add("filled");
         nameEl.className = "file-name";
-        var root = NDC.parseXml(text);
-        nameEl.textContent = file.name + " → <" + NDC.localname(root.tagName) + ">";
+        nameEl.textContent = file.name + " → <" + NDC.localname(NDC.parseXml(text).tagName) + ">";
         setStatus("loaded " + file.name);
+        persistBaseline();
         updateButton();
       };
       reader.onerror = function () {
@@ -244,47 +344,6 @@
       };
       reader.readAsText(file);
     });
-  });
-
-  // --- sample loader --------------------------------------------------------
-  // Lets a first-time visitor try the tool without hunting for files, and makes
-  // the UI verifiable end to end. Only works when served over HTTP; silently
-  // does nothing from file://, where fetch of local files is blocked.
-  $("#demo-btn").addEventListener("click", async function () {
-    setStatus("loading samples…");
-    async function grab(paths) {
-      for (var i = 0; i < paths.length; i++) {
-        try {
-          var res = await fetch(paths[i]);
-          if (res.ok) return await res.text();
-        } catch (e) { /* try next */ }
-      }
-      return null;
-    }
-    var base = await grab(["../samples/airshopping_rs_baseline.xml", "samples/airshopping_rs_baseline.xml"]);
-    var upd = await grab(["../samples/airshopping_rs_v2.xml", "samples/airshopping_rs_v2.xml"]);
-    var rq = await grab(["../samples/airshopping_rq.xml", "samples/airshopping_rq.xml"]);
-    if (!base || !upd) {
-      setStatus("could not load samples (open this page over http:// rather than file://)");
-      return;
-    }
-    var loaded = [
-      ["baseline_rs", "airshopping_rs_baseline.xml", base],
-      ["new_rs", "airshopping_rs_v2.xml", upd],
-    ];
-    if (rq) loaded.push(["baseline_rq", "airshopping_rq.xml", rq]);
-
-    loaded.forEach(function (entry) {
-      var slot = entry[0], name = entry[1], text = entry[2];
-      files[slot] = { name: name, text: text };
-      $("#slot-" + slot).classList.remove("error");
-      $("#slot-" + slot).classList.add("filled");
-      var nameEl = document.querySelector('.file-name[data-for="' + slot + '"]');
-      nameEl.className = "file-name";
-      nameEl.textContent = name + " → <" + NDC.localname(NDC.parseXml(text).tagName) + ">";
-    });
-    updateButton();
-    setStatus("samples loaded — press Compare responses");
   });
 
   $("#clear-btn").addEventListener("click", function () {
@@ -296,8 +355,9 @@
       nameEl.className = "file-name";
       $("#slot-" + slot).classList.remove("filled", "error");
     });
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
     $("#review-output").classList.add("hidden");
-    setStatus("");
+    setStatus("cleared");
     lastReview = null;
     updateButton();
   });
@@ -308,7 +368,6 @@
     setStatus("comparing…");
     $("#review-btn").disabled = true;
 
-    // Defer so the status text paints before a possibly large parse.
     setTimeout(function () {
       try {
         var report = NDC.diffXml(
@@ -317,18 +376,20 @@
           files.baseline_rs.name,
           files.new_rs.name
         );
-        var baseSummary = NDC.summarizeMessage(
-          NDC.parseXml(files.baseline_rs.text), files.baseline_rs.name
-        );
-        var newSummary = NDC.summarizeMessage(
-          NDC.parseXml(files.new_rs.text), files.new_rs.name
-        );
-        var n = NDCReport.narrative(
-          report, baseSummary.entity_counts, newSummary.entity_counts
-        );
-        var reviewRender = NDCReport.renderReview(
-          report, baseSummary.entity_counts, newSummary.entity_counts
-        );
+        var baseSummary = NDC.summarizeMessage(NDC.parseXml(files.baseline_rs.text), files.baseline_rs.name);
+        var newSummary = NDC.summarizeMessage(NDC.parseXml(files.new_rs.text), files.new_rs.name);
+        var n = NDCReport.narrative(report, baseSummary.entity_counts, newSummary.entity_counts);
+        var reviewRender = NDCReport.renderReview(report, baseSummary.entity_counts, newSummary.entity_counts);
+
+        // Trip / passenger comparison: prefer the request, fall back to the responses.
+        var tripChange = null;
+        try {
+          var baseShape = files.baseline_rq
+            ? NDCTrip.tripShapeFromRq(NDC.parseXml(files.baseline_rq.text))
+            : NDCTrip.tripShapeFromRs(NDC.parseXml(files.baseline_rs.text));
+          var newShape = NDCTrip.tripShapeFromRs(NDC.parseXml(files.new_rs.text));
+          tripChange = NDCTrip.compareTripShape(baseShape, newShape);
+        } catch (e) { tripChange = null; }
 
         lastReview = {
           report: report,
@@ -336,8 +397,9 @@
           newInventory: newSummary.entity_counts,
           narrative: n,
           reviewRender: reviewRender,
+          tripChange: tripChange,
         };
-        render(report, baseSummary, newSummary, n, reviewRender);
+        render(report, baseSummary, newSummary, n, reviewRender, tripChange);
         setStatus("done");
       } catch (err) {
         setStatus("error: " + err.message);
@@ -347,15 +409,22 @@
     }, 0);
   });
 
-  function render(report, baseSummary, newSummary, narrativeText, reviewRender) {
+  function render(report, baseSummary, newSummary, narrativeText, reviewRender, tripChange) {
     $("#review-output").classList.remove("hidden");
     $("#narrative").textContent = narrativeText;
 
+    var tripBox = $("#trip-box");
+    if (tripChange) {
+      tripBox.textContent = NDCTrip.renderShapeChange(tripChange);
+      tripBox.classList.toggle("changed", Boolean(tripChange.changed));
+    } else {
+      tripBox.textContent = "No trip information available.";
+      tripBox.classList.remove("changed");
+    }
+
     var base = baseSummary.entity_counts || {};
     var inv = newSummary.entity_counts || {};
-    var keys = Object.keys(base).concat(
-      Object.keys(inv).filter(function (k) { return !(k in base); })
-    );
+    var keys = Object.keys(base).concat(Object.keys(inv).filter(function (k) { return !(k in base); }));
     $("#counts").innerHTML = keys.map(function (k) {
       var b = base[k] || 0, n = inv[k] || 0;
       var arrow = n === b ? "" : (n < b ? " ↓" : " ↑");
@@ -401,14 +470,22 @@
         "</td></tr>";
     }).join("") || '<tr><td colspan="3" class="status">No value changes.</td></tr>';
 
+    var session = report.session_metadata || [];
+    $("#session-rows").innerHTML = session.map(function (v) {
+      return "<tr><td><code>" + esc(v.path) + "</code></td><td>" +
+        (v.missing_values || []).map(function (x) { return "<code>" + esc(x) + "</code>"; }).join("<br>") +
+        "</td><td>" +
+        (v.extra_values || []).map(function (x) { return "<code>" + esc(x) + "</code>"; }).join("<br>") +
+        "</td></tr>";
+    }).join("") || '<tr><td colspan="3" class="status">No session metadata differences.</td></tr>';
+
     $("#full-report").textContent = reviewRender;
   }
 
   // --- export ---------------------------------------------------------------
   $("#copy-btn").addEventListener("click", function () {
     if (!lastReview) return;
-    var text = $("#full-report").textContent;
-    navigator.clipboard.writeText(text).then(
+    navigator.clipboard.writeText($("#full-report").textContent).then(
       function () { setStatus("report copied"); },
       function () { setStatus("copy failed — select the text manually"); }
     );
@@ -416,30 +493,83 @@
 
   $("#download-json-btn").addEventListener("click", function () {
     if (!lastReview) return;
+    var r = lastReview.report;
     var payload = {
-      base: lastReview.report.base,
-      new: lastReview.report.new,
-      identical: lastReview.report.identical,
-      missing_nodes: lastReview.report.missing_nodes,
-      extra_nodes: lastReview.report.extra_nodes,
-      value_diffs: lastReview.report.value_diffs,
-      entities_removed: lastReview.report.entities_removed,
-      entities_added: lastReview.report.entities_added,
-      entities_modified: lastReview.report.entities_modified,
+      base: r.base,
+      new: r.new,
+      identical: r.identical,
+      missing_nodes: r.missing_nodes,
+      extra_nodes: r.extra_nodes,
+      value_diffs: r.value_diffs,
+      entities_removed: r.entities_removed,
+      entities_added: r.entities_added,
+      entities_modified: r.entities_modified,
+      session_metadata: r.session_metadata,
       baseline_inventory: lastReview.baselineInventory,
       new_inventory: lastReview.newInventory,
       narrative: lastReview.narrative,
+      trip_change: lastReview.tripChange ? {
+        changed: lastReview.tripChange.changed,
+        trip_type_changed: lastReview.tripChange.trip_type_changed,
+        legs_added: lastReview.tripChange.legs_added,
+        legs_removed: lastReview.tripChange.legs_removed,
+        pax_added: lastReview.tripChange.pax_added,
+        pax_removed: lastReview.tripChange.pax_removed,
+        baseline: lastReview.tripChange.baseline,
+        new: lastReview.tripChange.new,
+      } : null,
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = "ndc-diff-report.json";
+    a.download = "airline-cmp-report.json";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   });
+
+  // --- chat -----------------------------------------------------------------
+  function addMessage(who, body) {
+    var div = document.createElement("div");
+    div.className = "msg " + who;
+    div.innerHTML = '<div class="who">' + esc(who) + '</div><div class="body">' + esc(body) + "</div>";
+    $("#chat-log").appendChild(div);
+    $("#chat-log").scrollTop = $("#chat-log").scrollHeight;
+  }
+
+  function ask(text) {
+    if (!text) return;
+    addMessage("you", text);
+    var reply = NDCChat.answer(text, lastReview);
+    addMessage("airline-cmp", reply);
+  }
+
+  $("#chat-send").addEventListener("click", function () {
+    var value = $("#chat-input").value.trim();
+    if (!value) return;
+    $("#chat-input").value = "";
+    ask(value);
+  });
+  $("#chat-input").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      $("#chat-send").click();
+    }
+  });
+
+  // Quick-start prompts so the chat is discoverable without reading help.
+  ["Summary", "What is missing?", "What is extra?", "Did the trip type change?",
+   "Did the passenger mix change?", "How many offers are there now?"].forEach(function (label) {
+    var b = document.createElement("button");
+    b.textContent = label;
+    b.addEventListener("click", function () { ask(label); });
+    $("#suggestions").appendChild(b);
+  });
+
+  restoreBaseline();
+  addMessage("airline-cmp", NDCChat.helpText());
 })();
 </script>
 </body>

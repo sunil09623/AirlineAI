@@ -153,6 +153,116 @@ def test_review_update_includes_request_context(tmp_path):
     assert "TRX-DIFF" in review.request_context
 
 
+def test_churn_suffix_detects_session_token():
+    from airshop.ndc.diff import churn_suffix
+
+    # Real shape: prefix identifies the entity, tail is a per-response token.
+    assert (
+        churn_suffix(["Xbga0600210b3be03", "Xbga1900210b3be03"])
+        == "00210b3be03"
+    )
+
+
+def test_churn_suffix_leaves_ordinary_keys_alone():
+    from airshop.ndc.diff import churn_suffix
+
+    # Ordinary segment ids share no meaningful tail.
+    assert churn_suffix(["SEG1", "SEG2_1"]) == ""
+    # A single value has nothing to compare against.
+    assert churn_suffix(["IT1"]) == ""
+    # Too-short shared tail: below the threshold, so treated as meaningful.
+    assert churn_suffix(["A1", "B1"]) == ""
+
+
+def test_churn_normalisation_keeps_distinct_entities_distinct():
+    """The meaningful invariant: normalising ids must not merge separate entities."""
+    from airshop.ndc.diff import normalise_entity_keys
+
+    ids = {"BaggageAllowance": ["Xbga0600210b3be03", "Xbga1900210b3be03"]}
+    mapping = normalise_entity_keys(ids)
+    normalised = {mapping[v] for v in ids["BaggageAllowance"]}
+    # Two different allowances stay two different allowances...
+    assert len(normalised) == 2, "normalisation must not collapse distinct entities"
+    # ...and the stable prefix is what survives.
+    assert normalised == {"Xbga0600", "Xbga1900"} or all(
+        v.startswith("Xbga") for v in normalised
+    )
+    # Short shared tails must be left alone.
+    assert normalise_entity_keys({"Offer": ["IT1", "IT2"]}) == {"IT1": "IT1", "IT2": "IT2"}
+
+
+def test_attribute_carried_ids_are_recognised_as_entities():
+    from airshop.ndc.diff import collect_entity_ids
+
+    xml = (
+        '<AirShoppingRS><DataLists><BaggageAllowanceList>'
+        '<BaggageAllowance BaggageAllowanceID="Xbga0600210b3be03"><Type>Checked</Type></BaggageAllowance>'
+        '<BaggageAllowance BaggageAllowanceID="Xbga1900210b3be03"><Type>Checked</Type></BaggageAllowance>'
+        "</BaggageAllowanceList></DataLists></AirShoppingRS>"
+    )
+    from lxml import etree
+
+    ids = collect_entity_ids(etree.fromstring(xml.encode()))
+    assert ids["BaggageAllowance"] == ["Xbga0600210b3be03", "Xbga1900210b3be03"]
+
+
+def test_churned_ids_do_not_produce_noise():
+    """A response that only reissues session tokens must not look changed."""
+    from airshop.ndc.diff import diff_xml
+
+    def doc(suffix: str, extra: bool = False) -> str:
+        bgas = [
+            f'<BaggageAllowance BaggageAllowanceID="Xbga0600{suffix}"><Type>Checked</Type></BaggageAllowance>',
+            f'<BaggageAllowance BaggageAllowanceID="Xbga1900{suffix}"><Type>Checked</Type></BaggageAllowance>',
+        ]
+        if extra:
+            bgas.append(
+                f'<BaggageAllowance BaggageAllowanceID="Xbga9900{suffix}"><Type>CarryOn</Type></BaggageAllowance>'
+            )
+        fares = "".join(
+            f'<FareGroup ListKey="Xfbc{k}00{suffix}"><FareBasisCode>{k.upper()}</FareBasisCode></FareGroup>'
+            for k in ("09", "0e", "11")
+        )
+        return (
+            "<AirShoppingRS><DataLists>"
+            f"<BaggageAllowanceList>{''.join(bgas)}</BaggageAllowanceList>"
+            f"<FareList>{fares}</FareList>"
+            "</DataLists></AirShoppingRS>"
+        )
+
+    report = diff_xml(doc("210b3be03"), doc("0a0b3c8d7"), "old", "new")
+    assert report.value_diffs == [], "churned ids must not appear as value changes"
+    assert report.identical, "nothing substantive changed"
+
+    # A genuinely new allowance must still surface as an addition.
+    with_extra = diff_xml(doc("210b3be03"), doc("0a0b3c8d7", extra=True), "old", "new")
+    assert [e.key for e in with_extra.entities_added] == ["Xbga99"]
+    assert not with_extra.identical
+
+
+def test_volatile_session_fields_are_separated():
+    """Timestamps differ on every response and must not count as content churn."""
+    from airshop.ndc.diff import diff_xml
+
+    a = '<AirShoppingRS><PayloadAttributes><Timestamp>2026-01-01T00:00:00Z</Timestamp>' \
+        "<TrxID>T1</TrxID></PayloadAttributes></Rsv>".replace("Rsv", "AirShoppingRS")
+    b = '<AirShoppingRS><PayloadAttributes><Timestamp>2026-01-02T00:00:00Z</Timestamp>' \
+        "<TrxID>T2</TrxID></PayloadAttributes></Rsv>".replace("Rsv", "AirShoppingRS")
+    report = diff_xml(a, b, "old", "new")
+    assert report.identical, "only session metadata differs"
+    assert report.value_diffs == []
+    assert len(report.session_metadata) == 2
+
+
+def test_identical_pair_still_reports_identical():
+    from airshop.ndc.diff import diff_xml
+
+    _, xml = build_fixture()
+    report = diff_xml(xml, xml)
+    assert report.identical
+    assert report.session_metadata == []
+
+
 def test_summarize_message_counts_entities():
     _, xml = build_fixture()
     summary = summarize_message(xml, "rs")

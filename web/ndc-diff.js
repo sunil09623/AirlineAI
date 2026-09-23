@@ -18,19 +18,51 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-// ID-bearing NDC collections: element name -> child element holding its key.
+// ID-bearing NDC collections: element name -> where its identifying value lives.
+//
+// A value starting with "@" names an attribute; anything else names a child
+// element. Both forms occur in real payloads — carriers emit
+// BaggageAllowance/@BaggageAllowanceID (attribute) but Offer/OfferID (child) —
+// and a key declared as a child element still falls back to an attribute of the
+// same name, because implementations vary.
 const ENTITY_KEYS = {
   Offer: "OfferID",
   OfferItem: "OfferItemID",
   FlightSegment: "SegmentID",
+  PaxSegment: "PaxSegmentID",
   Fare: "FareCode",
+  FareGroup: "@ListKey",
+  FareItem: "FareItemID",
+  FareComponent: "FareComponentID",
   Pax: "PaxID",
   OriginDest: "OriginDestID",
   Order: "OrderID",
   PaxJourney: "PaxJourneyID",
   PriceClass: "PriceClassID",
   BaggageAllowance: "BaggageAllowanceID",
+  Service: "ServiceID",
+  ServiceDefinition: "ServiceDefinitionID",
+  Penalty: "PenaltyID",
+  Disclosure: "@ListKey",
+  Media: "MediaID",
+  ContactInfo: "ContactInfoID",
 };
+
+// Minimum length of a shared trailing fragment before it is treated as a
+// per-response session token rather than meaningful data.
+const CHURN_SUFFIX_MIN_LEN = 6;
+
+// Fields regenerated on every response by definition (transport/session
+// metadata, not business content). Reported separately so real changes stand out.
+const VOLATILE_FIELDS = [
+  "Timestamp",
+  "TrxID",
+  "CorrelationID",
+  "EchoTokenText",
+  "SequenceNumber",
+  "TransactionID",
+  "RequestID",
+];
 
 /** Strip a `{namespace}` prefix or `ns:` prefix from a tag name. */
 function localname(tag) {
@@ -206,29 +238,141 @@ function flattenEntity(entityEl) {
   return records;
 }
 
-/** Collect ID-bearing entities keyed by "Tag\u0000id". */
-function collectEntities(root) {
-  const entities = new Map();
+/**
+ * Identifying value per ID-bearing element, keyed by element tag.
+ * Reads an attribute when the mapping says so ("@ListKey"), otherwise a child
+ * element — and falls back to an attribute of the same name, because carriers
+ * differ on which they use.
+ */
+function collectEntityIds(root) {
+  const found = {};
   for (const element of descendants(root)) {
     const tag = localname(element.tagName);
-    const idChild = ENTITY_KEYS[tag];
-    if (!idChild) continue;
+    const spec = ENTITY_KEYS[tag];
+    if (!spec) continue;
+    const value = identifierValue(element, spec);
+    if (!value) continue;
+    if (!found[tag]) found[tag] = [];
+    found[tag].push(value);
+  }
+  return found;
+}
 
-    let key = null;
+/** Read an element's identifying value per its ENTITY_KEYS specification. */
+function identifierValue(element, spec) {
+  let value = null;
+  if (spec.charAt(0) === "@") {
+    value = element.getAttribute(spec.slice(1));
+  } else {
     for (const child of elementChildren(element)) {
-      if (localname(child.tagName) === idChild) {
-        key = (directText(child) || "").trim() || null;
+      if (localname(child.tagName) === spec) {
+        value = (directText(child) || "").trim() || null;
         break;
       }
     }
-    if (!key) continue;
+    if (!value) value = element.getAttribute(spec);
+  }
+  return value ? value.trim() : null;
+}
 
-    // Keep every record describing the entity except the ID itself.
-    const idStruct = `${tag}/${idChild}`;
+/**
+ * Longest trailing fragment shared by every value, if it looks like a token.
+ *
+ * Carriers regenerate the tail of each identifier on every response (a session
+ * token), which would otherwise make every entity look removed-and-added.
+ *
+ * The only guard needed is a minimum length: short shared tails are ordinary in
+ * real keys. Removing a common suffix can never make two distinct values equal,
+ * so no separate collision check is required.
+ */
+function churnSuffix(values) {
+  if (values.length < 2) return "";
+  const limit = Math.min.apply(null, values.map((v) => v.length)) - 1;
+  if (limit < CHURN_SUFFIX_MIN_LEN) return "";
+
+  let suffix = "";
+  for (let offset = 1; offset <= limit; offset += 1) {
+    const candidate = values[0].slice(-offset);
+    if (values.every((v) => v.endsWith(candidate))) suffix = candidate;
+    else break;
+  }
+  return suffix.length >= CHURN_SUFFIX_MIN_LEN ? suffix : "";
+}
+
+/** Map each raw id to its churn-stripped form, per entity type. */
+function normaliseEntityKeys(ids) {
+  const mapping = {};
+  for (const tag of Object.keys(ids)) {
+    const values = ids[tag];
+    const suffix = churnSuffix(values);
+    for (const value of values) {
+      mapping[value] = suffix ? value.slice(0, value.length - suffix.length) : value;
+    }
+  }
+  return mapping;
+}
+
+/** Tag-path suffixes that carry identifier values, mapped to those raw values. */
+function identifierSuffixes(ids) {
+  const suffixes = {};
+  for (const tag of Object.keys(ids)) {
+    const spec = ENTITY_KEYS[tag];
+    const name = spec.charAt(0) === "@" ? spec.slice(1) : spec;
+    for (const suffix of [tag + "/@" + name, tag + "/" + name]) {
+      if (!suffixes[suffix]) suffixes[suffix] = new Set();
+      for (const v of ids[tag]) suffixes[suffix].add(v);
+    }
+  }
+  return suffixes;
+}
+
+/**
+ * Rewrite churning identifier values to their stable form.
+ *
+ * Without this the structural pass sees every regenerated identifier as a
+ * changed value, so a response that merely reissued its session tokens reports a
+ * wall of "no longer present / newly present" lines.
+ */
+function applyIdNormalisation(records, ids, normalised) {
+  const suffixes = identifierSuffixes(ids);
+  const suffixList = Object.keys(suffixes);
+  return records.map((record) => {
+    for (const suffix of suffixList) {
+      if (record.struct.endsWith(suffix) && suffixes[suffix].has(record.value)) {
+        const rewritten = normalised[record.value] || record.value;
+        return rewritten === record.value
+          ? record
+          : { struct: record.struct, path: record.path, kind: record.kind, value: rewritten };
+      }
+    }
+    return record;
+  });
+}
+
+/** Collect ID-bearing entities keyed by "Tag\u0000normalised-id". */
+function collectEntities(root) {
+  const ids = collectEntityIds(root);
+  const normalised = normaliseEntityKeys(ids);
+
+  const entities = new Map();
+  for (const element of descendants(root)) {
+    const tag = localname(element.tagName);
+    const spec = ENTITY_KEYS[tag];
+    if (!spec) continue;
+
+    const raw = identifierValue(element, spec);
+    if (!raw) continue;
+    const key = normalised[raw] || raw;
+
+    // Keep every record describing the entity except its own identifier, so two
+    // instances with the same id compare field-by-field.
+    const idName = spec.charAt(0) === "@" ? spec.slice(1) : spec;
+    const idStructs = [tag + "/" + idName, tag + "/@" + idName];
     const scoped = flattenEntity(element).filter(
-      (r) => !(r.struct === idStruct && r.value === key)
+      (r) => !(r.value === raw && idStructs.indexOf(r.struct) !== -1)
     );
-    const composite = `${tag}\u0000${key}`;
+
+    const composite = tag + "\u0000" + key;
     if (!entities.has(composite)) entities.set(composite, []);
     entities.get(composite).push(...scoped);
   }
@@ -323,8 +467,17 @@ function diffXml(baseXml, newXml, baseLabel = "baseline", newLabel = "new") {
   };
 
   // --- structural pass ---------------------------------------------------- //
-  const baseRecords = flatten(baseRoot);
-  const newRecords = flatten(newRoot);
+  // Identifiers whose trailing token is regenerated per response are rewritten
+  // to their stable form before any comparison, otherwise every reissued id
+  // would masquerade as a value change.
+  const baseIds = collectEntityIds(baseRoot);
+  const newIds = collectEntityIds(newRoot);
+  const baseRecords = applyIdNormalisation(
+    flatten(baseRoot), baseIds, normaliseEntityKeys(baseIds)
+  );
+  const newRecords = applyIdNormalisation(
+    flatten(newRoot), newIds, normaliseEntityKeys(newIds)
+  );
 
   const baseStruct = new Map();
   const newStruct = new Map();
@@ -409,10 +562,25 @@ function diffXml(baseXml, newXml, baseLabel = "baseline", newLabel = "new") {
   if (churnedTags.size) {
     report.value_diffs = report.value_diffs.filter((v) => {
       const hay = `${v.struct}/`;
-      for (const tag of churnedTags) if (hay.includes(`/${tag}/`)) return false;
-      return true;
+      let churned = false;
+      churnedTags.forEach((tag) => {
+        if (hay.includes(`/${tag}/`)) churned = true;
+      });
+      return !churned;
     });
   }
+
+  // Session/transport metadata is regenerated on every response by definition,
+  // so it is separated out rather than reported as content churn.
+  report.session_metadata = [];
+  report.value_diffs = report.value_diffs.filter((v) => {
+    const last = v.struct.split("/").pop().replace(/^@/, "");
+    if (VOLATILE_FIELDS.indexOf(last) !== -1) {
+      report.session_metadata.push(v);
+      return false;
+    }
+    return true;
+  });
 
   report.identical =
     Object.keys(report.missing_nodes).length === 0 &&
@@ -442,11 +610,15 @@ function renderSig(key) {
 
 return {
   ENTITY_KEYS: ENTITY_KEYS,
+  VOLATILE_FIELDS: VOLATILE_FIELDS,
   localname: localname,
   parseXml: parseXml,
   flatten: flatten,
   collectEntities: collectEntities,
+  collectEntityIds: collectEntityIds,
   descendants: descendants,
+  churnSuffix: churnSuffix,
+  normaliseEntityKeys: normaliseEntityKeys,
   summarizeMessage: summarizeMessage,
   diffXml: diffXml,
 };
