@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<iata:AirShoppingRQ xmlns:iata="http://www.iata.org/IATA/2015/00/2019.1" xmlns:cns="http://www.iata.org/IATA/2015/00/2019.1/Country" xmlns:cur="http://www.iata.org/IATA/2015/00/2019.1/Currency" Version="21.3">
+  <PayloadAttributes>
+    <TrxID>TRX-SAMPLE-001</TrxID>
+    <CorrelationID>TRX-SAMPLE-001</CorrelationID>
+    <Version>21.3</Version>
+  </PayloadAttributes>
+  <Request>
+    <FlightRequest>
+      <OriginDest>
+        <OriginCode>LHR</OriginCode>
+        <DestCode>JFK</DestCode>
+        <DepartureDate>2027-03-15</DepartureDate>
+        <CabinTypeName>Business</CabinTypeName>
+      </OriginDest>
+    </FlightRequest>
+    <PaxList>
+      <Pax>
+        <PaxID>ADT1</PaxID>
+        <PTC>ADT</PTC>
+      </Pax>
+      <Pax>
+        <PaxID>CHD2</PaxID>
+        <PTC>CHD</PTC>
+      </Pax>
+    </PaxList>
+    <ShoppingCriteria>
+      <CurParameter>
+        <CurCode>USD</CurCode>
+      </CurParameter>
+      <MaxConnections>1</MaxConnections>
+    </ShoppingCriteria>
+  </Request>
+</iata:AirShoppingRQ>

@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# Test / tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+tests/_tmp_catalog/
+
+# Local run artifacts (never commit uploaded NDC payloads or generated data)
+runs/
+reports/
+ndc_messages/
+web_runs/
+training_data/
+*.log
+
+# Local model runtime
+ollama/
+
+# OS
+.DS_Store

@@ -1,0 +1,38 @@
+[project]
+name = "airshop-agent"
+version = "0.1.0"
+description = "Local agent for IATA NDC AirShoppingRQ/RS flight shopping"
+requires-python = ">=3.11"
+dependencies = [
+    "openhands-sdk>=1.49",
+    "openhands-tools>=1.49",
+    "pydantic>=2.7",
+    "lxml>=5.0",
+    "jinja2>=3.1",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+serve = ["fastapi>=0.115", "uvicorn>=0.30"]
+
+[project.scripts]
+airshop = "airshop.agent.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NDC AirShopping Reviewer — offline</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --line: #2b303b;
+    --text: #e6e9ef;
+    --muted: #9aa4b2;
+    --accent: #5b9dff;
+    --missing: #ff6b6b;
+    --extra: #4ade80;
+    --changed: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    padding: 14px 20px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px; background: var(--panel);
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  .badge {
+    font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted);
+  }
+  .badge.ok { color: var(--extra); border-color: #24603a; }
+  .badge.off { color: var(--changed); border-color: #6b4b12; }
+  nav { display: flex; gap: 4px; padding: 10px 20px 0; }
+  nav button {
+    background: transparent; color: var(--muted); border: 1px solid transparent;
+    border-bottom: none; padding: 8px 14px; cursor: pointer; font-size: 13px;
+    border-radius: 8px 8px 0 0;
+  }
+  nav button.active {
+    background: var(--panel); color: var(--text); border-color: var(--line);
+  }
+  main { padding: 0 20px 40px; max-width: 1100px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 0 10px 10px 10px; padding: 18px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .slot {
+    background: var(--panel-2); border: 1px dashed var(--line);
+    border-radius: 10px; padding: 14px;
+  }
+  .slot h3 { margin: 0 0 4px; font-size: 13px; }
+  .slot p { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+  .slot.filled { border-style: solid; border-color: #2f6f4a; }
+  .file-name { font-size: 12px; color: var(--extra); word-break: break-all; }
+  input[type=file] { display: none; }
+  label.pick {
+    display: inline-block; background: #232833; border: 1px solid var(--line);
+    color: var(--text); padding: 7px 12px; border-radius: 8px; cursor: pointer;
+    font-size: 12px;
+  }
+  label.pick:hover { background: #2b313d; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+  button.primary {
+    background: var(--accent); color: #08111f; border: none; padding: 9px 16px;
+    border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px;
+  }
+  button.primary:disabled { opacity: .45; cursor: not-allowed; }
+  button.ghost {
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  }
+  .status { color: var(--muted); font-size: 12px; }
+  .narrative {
+    margin-top: 18px; padding: 14px 16px; background: #141a24;
+    border-left: 3px solid var(--accent); border-radius: 8px; font-size: 13.5px;
+  }
+  h2 { font-size: 14px; margin: 24px 0 8px; }
+  .counts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 10px; font-size: 12px; color: var(--muted);
+  }
+  .chip b { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 5px; font-weight: 600; }
+  .tag.removed { background: #3a1d1d; color: var(--missing); }
+  .tag.added { background: #14301f; color: var(--extra); }
+  .tag.modified { background: #33280d; color: var(--changed); }
+  .tag.missing { background: #3a1d1d; color: var(--missing); }
+  .tag.extra { background: #14301f; color: var(--extra); }
+  .tag.value { background: #1d2433; color: var(--accent); }
+  pre {
+    background: #0d1016; border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px; overflow: auto; max-height: 460px; font-size: 12px; color: #c8d0dc;
+  }
+  .chat-log { min-height: 260px; max-height: 460px; overflow-y: auto; padding-right: 6px; }
+  .msg { margin: 0 0 14px; }
+  .msg .who { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .6px; }
+  .msg .body { white-space: pre-wrap; }
+  .msg.user .body { color: var(--accent); }
+  textarea {
+    width: 100%; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+    font: inherit; resize: vertical; min-height: 74px;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NDC AirShopping Reviewer</h1>
+  <span class="badge" id="offline-badge">offline</span>
+  <span class="badge" id="chat-badge">chat: checking…</span>
+  <span class="badge" id="model-badge"></span>
+</header>
+
+<nav>
+  <button class="active" data-tab="review">Review &amp; diff</button>
+  <button data-tab="chat">Chat</button>
+</nav>
+
+<main>
+  <section class="panel" id="tab-review">
+    <p class="status">
+      Upload the baseline AirShoppingRS and the new AirShoppingRS to see precisely what
+      is missing and what is extra. AirShoppingRQ is optional and adds request context.
+      Everything is parsed locally — no data leaves this machine.
+    </p>
+
+    <div class="grid">
+      <div class="slot" id="slot-baseline_rq">
+        <h3>1. AirShoppingRQ <span class="badge">optional</span></h3>
+        <p>The original request, for context.</p>
+        <input type="file" id="file-baseline_rq" accept=".xml,text/xml,application/xml" />
+        <label class="pick" for="file-baseline_rq">Choose file</label>
+        <div class="file-name" data-for="baseline_rq"></div>
+      </div>
+      <div class="slot" id="slot-baseline_rs">
+        <h3>2. Baseline AirShoppingRS</h3>
+        <p>The first response, your reference.</p>
+        <input type="file" id="file-baseline_rs" accept=".xml,text/xml,application/xml" />
+        <label class="pick" for="file-baseline_rs">Choose file</label>
+        <div class="file-name" data-for="baseline_rs"></div>
+      </div>
+      <div class="slot" id="slot-new_rs">
+        <h3>3. New AirShoppingRS</h3>
+        <p>The second response to compare.</p>
+        <input type="file" id="file-new_rs" accept=".xml,text/xml,application/xml" />
+        <label class="pick" for="file-new_rs">Choose file</label>
+        <div class="file-name" data-for="new_rs"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="primary" id="review-btn" disabled>Compare responses</button>
+      <button class="ghost" id="clear-btn">Clear</button>
+      <span class="status" id="review-status"></span>
+    </div>
+
+    <div id="review-output" class="hidden">
+      <div class="narrative" id="narrative"></div>
+
+      <h2>Counts</h2>
+      <div class="counts" id="counts"></div>
+
+      <h2>Entities missing or extra</h2>
+      <table>
+        <thead><tr><th>Change</th><th>Entity</th><th>ID</th><th>Details</th></tr></thead>
+        <tbody id="entity-rows"></tbody>
+      </table>
+
+      <h2>Node paths</h2>
+      <table>
+        <thead><tr><th>Change</th><th>Path</th><th>Count</th></tr></thead>
+        <tbody id="node-rows"></tbody>
+      </table>
+
+      <h2>Value changes</h2>
+      <table>
+        <thead><tr><th>Path</th><th>No longer present</th><th>Newly present</th></tr></thead>
+        <tbody id="value-rows"></tbody>
+      </table>
+
+      <h2>Full report</h2>
+      <pre id="full-report"></pre>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="tab-chat">
+    <p class="status" id="chat-hint">
+      Ask the local agent about the messages you uploaded. This uses the local model
+      only; the Review tab needs no model at all.
+    </p>
+    <div class="chat-log" id="chat-log"></div>
+    <div class="row">
+      <textarea id="chat-input" placeholder="e.g. compare baseline_rs and new_rs and explain what changed"></textarea>
+    </div>
+    <div class="row">
+      <button class="primary" id="chat-send">Send</button>
+      <span class="status" id="chat-status"></span>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const uploaded = {};
+const SLOTS = ["baseline_rq", "baseline_rs", "new_rs"];
+
+// --- tabs -------------------------------------------------------------------
+document.querySelectorAll("nav button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav button").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    const tab = btn.dataset.tab;
+    $("#tab-review").classList.toggle("hidden", tab !== "review");
+    $("#tab-chat").classList.toggle("hidden", tab !== "chat");
+  });
+});
+
+// --- health -----------------------------------------------------------------
+async function loadHealth() {
+  try {
+    const res = await fetch("/api/health");
+    const data = await res.json();
+    $("#offline-badge").textContent = "offline";
+    $("#offline-badge").className = "badge ok";
+    $("#chat-badge").textContent = data.chat_available ? "chat: ready" : "chat: no model";
+    $("#chat-badge").className = "badge " + (data.chat_available ? "ok" : "off");
+    $("#model-badge").textContent = data.model ? ("model: " + data.model) : "";
+    for (const name of data.messages || []) { uploaded[name] = name; }
+    for (const slot of SLOTS) {
+      if (uploaded[slot]) {
+        document.querySelector(`.file-name[data-for="${slot}"]`).textContent =
+          "using existing: " + uploaded[slot];
+        $("#slot-" + slot).classList.add("filled");
+      }
+    }
+    updateReviewButton();
+  } catch (err) {
+    $("#chat-badge").textContent = "chat: unknown";
+    $("#chat-badge").className = "badge off";
+  }
+}
+
+// --- uploads ----------------------------------------------------------------
+SLOTS.forEach((slot) => {
+  const input = $("#file-" + slot);
+  input.addEventListener("change", async () => {
+    const file = input.files[0];
+    if (!file) return;
+    const body = new FormData();
+    body.append("file", file);
+    body.append("name", slot);
+    $("#review-status").textContent = "uploading " + file.name + "…";
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || res.statusText);
+      }
+      const data = await res.json();
+      uploaded[slot] = data.name;
+      document.querySelector(`.file-name[data-for="${slot}"]`).textContent =
+        file.name + " → " + data.kind;
+      $("#slot-" + slot).classList.add("filled");
+      $("#review-status").textContent = "registered " + data.name;
+      updateReviewButton();
+    } catch (err) {
+      $("#review-status").textContent = "upload failed: " + err.message;
+    }
+  });
+});
+
+function updateReviewButton() {
+  $("#review-btn").disabled = !(uploaded.baseline_rs && uploaded.new_rs);
+}
+
+$("#clear-btn").addEventListener("click", () => {
+  SLOTS.forEach((slot) => {
+    delete uploaded[slot];
+    $("#file-" + slot).value = "";
+    document.querySelector(`.file-name[data-for="${slot}"]`).textContent = "";
+    $("#slot-" + slot).classList.remove("filled");
+  });
+  $("#review-output").classList.add("hidden");
+  $("#review-status").textContent = "";
+  updateReviewButton();
+});
+
+// --- review -----------------------------------------------------------------
+$("#review-btn").addEventListener("click", async () => {
+  $("#review-status").textContent = "comparing…";
+  $("#review-btn").disabled = true;
+  try {
+    const res = await fetch("/api/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        baseline_rs: uploaded.baseline_rs,
+        new_rs: uploaded.new_rs,
+        baseline_rq: uploaded.baseline_rq || null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || res.statusText);
+    }
+    renderReview(await res.json());
+    $("#review-status").textContent = "done";
+  } catch (err) {
+    $("#review-status").textContent = "error: " + err.message;
+  } finally {
+    $("#review-btn").disabled = false;
+  }
+});
+
+function renderReview(data) {
+  $("#review-output").classList.remove("hidden");
+  $("#narrative").textContent = data.narrative;
+
+  const inv = data.new_inventory || {};
+  const base = data.baseline_inventory || {};
+  const keys = Array.from(new Set([...Object.keys(base), ...Object.keys(inv)]));
+  $("#counts").innerHTML = keys
+    .map((k) => {
+      const b = base[k] ?? 0, n = inv[k] ?? 0;
+      const cls = n < b ? "chip" : (n > b ? "chip" : "chip");
+      const arrow = n === b ? "" : (n < b ? " ↓" : " ↑");
+      return `<span class="${cls}">${esc(k)}: <b>${b} → ${n}</b>${arrow}</span>`;
+    })
+    .join("");
+
+  const rows = [];
+  (data.entities_removed || []).forEach((e) =>
+    rows.push(`<tr><td><span class="tag removed">MISSING</span></td><td>${esc(e.entity)}</td>
+      <td><code>${esc(e.key)}</code></td><td>removed from the new response</td></tr>`));
+  (data.entities_added || []).forEach((e) =>
+    rows.push(`<tr><td><span class="tag added">EXTRA</span></td><td>${esc(e.entity)}</td>
+      <td><code>${esc(e.key)}</code></td><td>newly added</td></tr>`));
+  (data.entities_modified || []).forEach((e) => {
+    const detail = [
+      ...(e.missing || []).map((m) => `<div><span class="tag missing">was</span> <code>${esc(m)}</code></div>`),
+      ...(e.extra || []).map((x) => `<div><span class="tag extra">now</span> <code>${esc(x)}</code></div>`),
+    ].join("");
+    rows.push(`<tr><td><span class="tag modified">CHANGED</span></td><td>${esc(e.entity)}</td>
+      <td><code>${esc(e.key)}</code></td><td>${detail}</td></tr>`);
+  });
+  $("#entity-rows").innerHTML = rows.join("") ||
+    `<tr><td colspan="4" class="status">No entity-level differences.</td></tr>`;
+
+  const nodeRows = [];
+  Object.entries(data.missing_nodes || {}).forEach(([p, c]) =>
+    nodeRows.push(`<tr><td><span class="tag missing">MISSING</span></td><td><code>${esc(p)}</code></td><td>${c}</td></tr>`));
+  Object.entries(data.extra_nodes || {}).forEach(([p, c]) =>
+    nodeRows.push(`<tr><td><span class="tag extra">EXTRA</span></td><td><code>${esc(p)}</code></td><td>${c}</td></tr>`));
+  $("#node-rows").innerHTML = nodeRows.join("") ||
+    `<tr><td colspan="3" class="status">No node-path differences.</td></tr>`;
+
+  const valueRows = (data.value_diffs || []).map((v) =>
+    `<tr><td><code>${esc(v.path)}</code></td>
+      <td>${(v.missing_values || []).map((x) => `<code>${esc(x)}</code>`).join("<br>")}</td>
+      <td>${(v.extra_values || []).map((x) => `<code>${esc(x)}</code>`).join("<br>")}</td></tr>`);
+  $("#value-rows").innerHTML = valueRows.join("") ||
+    `<tr><td colspan="3" class="status">No value changes.</td></tr>`;
+
+  $("#full-report").textContent = data.render || "";
+}
+
+// --- chat -------------------------------------------------------------------
+function addMessage(who, body) {
+  const div = document.createElement("div");
+  div.className = "msg " + who;
+  div.innerHTML = `<div class="who">${esc(who)}</div><div class="body">${esc(body)}</div>`;
+  $("#chat-log").appendChild(div);
+  $("#chat-log").scrollTop = $("#chat-log").scrollHeight;
+}
+
+async function sendChat() {
+  const message = $("#chat-input").value.trim();
+  if (!message) return;
+  addMessage("you", message);
+  $("#chat-input").value = "";
+  $("#chat-send").disabled = true;
+  $("#chat-status").textContent = "thinking…";
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || res.statusText);
+    addMessage("agent", data.reply);
+    $("#chat-status").textContent = "";
+  } catch (err) {
+    addMessage("agent", "Chat unavailable: " + err.message);
+    $("#chat-status").textContent = "";
+  } finally {
+    $("#chat-send").disabled = false;
+  }
+}
+
+$("#chat-send").addEventListener("click", sendChat);
+$("#chat-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendChat();
+});
+
+loadHealth();
+</script>
+</body>
+</html>
