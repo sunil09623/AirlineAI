@@ -243,7 +243,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.compare:
         return run_compare(args)
     if args.serve:
-        from airshop.web.server import run as run_web
+        try:
+            from airshop.web.server import run as run_web
+        except ModuleNotFoundError as exc:
+            missing = getattr(exc, "name", "a web dependency")
+            print(
+                f"The web UI needs extra packages ({missing} not found).\n"
+                'Install them with either:\n'
+                '  pip install -e ".[serve]"\n'
+                '  pip install -e ".[dev]"   # includes serve plus pytest\n'
+                "The CLI diff mode (--compare) works without them.",
+                file=sys.stderr,
+            )
+            return 1
 
         workspace_dir = Path(args.workspace or Path.cwd())
         print(
