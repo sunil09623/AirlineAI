@@ -16,6 +16,39 @@ optional chat layer runs against a local Ollama model.
 | Generate AirShoppingRQ/RS locally | no | no |
 | Chat explanation of a diff | yes (local Ollama) | no |
 
+## Install
+
+Requires **Python 3.12, 3.13 or 3.14**. Python 3.15 is not supported yet: PyYAML
+(pulled in transitively through `openhands-sdk` → `python-frontmatter`) publishes
+no cp315 wheels, so `pip install` tries to build it from source and fails inside
+Cython. If you are on 3.15, install a 3.13 interpreter alongside it and use that.
+
+Windows: `py -3.13 -m venv .venv` picks a specific version. Check what you have
+with `py -0p`.
+
+```bash
+git clone https://github.com/sunil09623/AirlineAI.git
+cd AirlineAI
+
+# create the environment (use an explicit 3.12-3.14 interpreter on Windows)
+python3 -m venv .venv
+
+# activate
+source .venv/bin/activate        # Linux / macOS
+# .venv\Scripts\Activate.ps1     # Windows PowerShell
+# .venv\Scripts\activate.bat     # Windows cmd
+
+pip install -e ".[dev]"
+```
+
+Install options:
+
+| Command | What you get |
+|---|---|
+| `pip install -e ".[dev]"` | Everything: diff engine, CLI, web UI, tests |
+| `pip install -e ".[serve]"` | Diff engine, CLI, web UI (no test deps) |
+| `pip install -e .` | Diff engine + CLI only (no web UI) |
+
 ## Quick start
 
 ```bash
@@ -23,7 +56,7 @@ python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 
 # Browser UI: upload files and see the diff
-.venv/bin/python -m airshop.agent.cli --serve --port 12000
+.venv/bin/airshop --serve --port 12000
 # then open http://127.0.0.1:12000
 ```
 
