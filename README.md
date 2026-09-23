@@ -91,7 +91,7 @@ Environment variables:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `LLM_MODEL` | `qwen2.5:7b-instruct` | Ollama model name |
+| `LLM_MODEL` | `qwen2.5:3b-instruct` | Ollama model name |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama endpoint |
 | `LLM_TEMPERATURE` | `0.2` | Sampling temperature |
 | `AIRSHOP_OFFLINE` | `1` | Set to `0` to allow non-local models |

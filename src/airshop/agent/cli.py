@@ -26,9 +26,11 @@ from airshop.offline import enforce_offline
 
 enforce_offline()
 
-from openhands.sdk import LLMConvertibleEvent  # noqa: E402
-
-from airshop.agent.local import AgentConfig, build_conversation  # noqa: E402
+from airshop.agent.local import (  # noqa: E402
+    AgentConfig,
+    build_conversation,
+    collect_agent_text,
+)
 from airshop.ndc.catalog import MessageCatalog, review_update  # noqa: E402
 from airshop.store import TransactionStore  # noqa: E402
 from airshop.tools.ndc import (  # noqa: E402
@@ -41,40 +43,15 @@ from airshop.tools.ndc import (  # noqa: E402
 )
 
 
-def _collect_agent_messages(events_sink: list):
-    """Return a callback that records the agent's natural-language output."""
-
-    def callback(event) -> None:
-        if isinstance(event, LLMConvertibleEvent):
-            try:
-                message = event.to_llm_message()
-            except Exception:  # noqa: BLE001 - never let logging break a run
-                return
-            role = getattr(message, "role", "")
-            if role == "assistant":
-                events_sink.append(message)
-
-    return callback
-
-
 def run_once(prompt: str, config: AgentConfig, stream: bool = True) -> str:
     """Run a single prompt through the agent and return its final text."""
-    collected: list = []
-    conversation = build_conversation(config, callbacks=[_collect_agent_messages(collected)])
+    collected: list[str] = []
+    conversation = build_conversation(
+        config, callbacks=[collect_agent_text(collected)]
+    )
     conversation.send_message(prompt)
     conversation.run()
-
-    # The last assistant message is the agent's answer.
-    for message in reversed(collected):
-        text = getattr(message, "content", None)
-        if isinstance(text, str) and text.strip():
-            return text
-        if isinstance(text, list):
-            parts = [getattr(p, "text", "") for p in text if getattr(p, "text", None)]
-            joined = "\n".join(p for p in parts if p).strip()
-            if joined:
-                return joined
-    return ""
+    return collected[-1] if collected else ""
 
 
 def run_interactive(config: AgentConfig) -> None:

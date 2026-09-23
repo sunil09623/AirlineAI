@@ -68,6 +68,85 @@ def test_health_reports_offline(tmp_path):
     body = client.get("/api/health").json()
     assert body["status"] == "ok"
     assert body["offline"] is True
+    assert "chat_available" in body
+
+
+def test_health_default_model_matches_readme(tmp_path):
+    """The default model must be the one the README tells users to pull."""
+    from airshop.agent.local import AgentConfig
+
+    assert AgentConfig().model == "qwen2.5:3b-instruct"
+
+
+def test_chat_unavailable_reports_reason_not_500(tmp_path, monkeypatch):
+    """A missing model must yield a usable message, never an unhandled 500."""
+    client = make_client(tmp_path)
+    monkeypatch.setattr(
+        "airshop.web.server._ollama_reachable", lambda _url: True
+    )
+    monkeypatch.setattr(
+        "airshop.web.server._model_available", lambda _m, _u: False
+    )
+    response = client.post("/api/chat", json={"message": "hi"})
+    assert response.status_code == 503
+    assert "ollama pull" in response.json()["detail"]
+
+
+def test_chat_server_down_reports_503(tmp_path, monkeypatch):
+    client = make_client(tmp_path)
+    monkeypatch.setattr(
+        "airshop.web.server._ollama_reachable", lambda _url: False
+    )
+    response = client.post("/api/chat", json={"message": "hi"})
+    assert response.status_code == 503
+    assert "not reachable" in response.json()["detail"]
+
+
+def test_agent_text_extracts_list_content():
+    """Regression: SDK message content is a list of TextContent, not a str."""
+    from openhands.sdk.llm import Message, TextContent
+
+    from airshop.agent.local import _agent_text
+
+    assert _agent_text(Message(role="assistant", content=[TextContent(text="Hi")])) == "Hi"
+    assert _agent_text(Message(role="assistant", content="plain")) == "plain"
+    assert (
+        _agent_text(
+            Message(
+                role="assistant",
+                content=[TextContent(text="a"), TextContent(text="b")],
+            )
+        )
+        == "a\nb"
+    )
+    assert _agent_text(Message(role="assistant", content=[])) == ""
+
+
+def test_model_available_detects_installed_model(tmp_path, monkeypatch):
+    import airshop.web.server as server
+
+    class FakeSock:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def sendall(self, _data):
+            return None
+
+        def recv(self, _n):
+            if getattr(self, "_sent", False):
+                return b""
+            self._sent = True
+            return (
+                b"HTTP/1.1 200 OK\r\n\r\n"
+                b'{"models":[{"name":"qwen2.5:3b-instruct"}]}'
+            )
+
+    monkeypatch.setattr(server.socket, "create_connection", lambda *a, **k: FakeSock())
+    assert server._model_available("qwen2.5:3b-instruct", "http://127.0.0.1:11434")
+    assert not server._model_available("qwen2.5:70b", "http://127.0.0.1:11434")
 
 
 def test_index_serves_ui(tmp_path):

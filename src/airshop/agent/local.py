@@ -73,7 +73,9 @@ Working rules:
 class AgentConfig:
     """Configuration for building the local agent."""
 
-    model: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "qwen2.5:7b-instruct"))
+    model: str = field(
+        default_factory=lambda: os.getenv("LLM_MODEL", "qwen2.5:3b-instruct")
+    )
     api_key: str | None = field(default_factory=lambda: os.getenv("LLM_API_KEY"))
     base_url: str | None = field(default_factory=lambda: os.getenv("LLM_BASE_URL"))
     ollama_base_url: str | None = field(
@@ -107,7 +109,7 @@ def _build_llm(config: AgentConfig) -> LLM:
     """Create the LLM handle.
 
     A local Ollama runtime is the default: with no ``LLM_API_KEY`` and a
-    model name like ``qwen2.5:7b-instruct``, litellm routes to Ollama.
+    model name like ``qwen2.5:3b-instruct``, litellm routes to Ollama.
     """
     is_local = not config.api_key or config.model.startswith(("ollama/", "ollama_chat/"))
     model = config.model
@@ -160,6 +162,47 @@ def build_agent(config: AgentConfig | None = None) -> Agent:
     )
 
 
+def _agent_text(message) -> str:
+    """Extract plain text from an agent message.
+
+    An SDK message's ``content`` is a list of ``TextContent`` parts, not a string,
+    and ``content_to_str`` returns a list of plain strings, so both need joining.
+    """
+    from openhands.sdk.llm import content_to_str
+
+    content = getattr(message, "content", None)
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content.strip()
+    return "\n".join(part for part in content_to_str(content) if part).strip()
+
+
+def collect_agent_text(sink: list[str]):
+    """Return a conversation callback that appends the agent's text replies.
+
+    Shared by the CLI and the web chat endpoint so both handle SDK message
+    content identically.
+    """
+
+    def callback(event) -> None:
+        from openhands.sdk import LLMConvertibleEvent
+
+        if not isinstance(event, LLMConvertibleEvent):
+            return
+        try:
+            message = event.to_llm_message()
+        except Exception:  # noqa: BLE001 - never let logging break a run
+            return
+        if getattr(message, "role", "") != "assistant":
+            return
+        text = _agent_text(message)
+        if text:
+            sink.append(text)
+
+    return callback
+
+
 def build_conversation(
     config: AgentConfig | None = None,
     callbacks=None,
@@ -184,4 +227,5 @@ __all__ = [
     "build_agent",
     "build_conversation",
     "build_ndc_tools",
+    "collect_agent_text",
 ]

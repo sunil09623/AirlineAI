@@ -15,6 +15,7 @@ Everything binds to localhost and never makes an outbound request.
 
 from __future__ import annotations
 
+import json
 import socket
 import tempfile
 from pathlib import Path
@@ -24,7 +25,11 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
-from airshop.agent.local import AgentConfig, build_conversation
+from airshop.agent.local import (
+    AgentConfig,
+    build_conversation,
+    collect_agent_text,
+)
 from airshop.ndc.catalog import MessageCatalog, review_update
 from airshop.ndc.diff import summarize_message
 from airshop.offline import enforce_offline
@@ -174,7 +179,7 @@ def create_app(workspace_dir: Path | str = "web_runs") -> FastAPI:
             "status": "ok",
             "offline": True,
             "model": config.model,
-            "chat_available": _ollama_reachable(config.ollama_base_url),
+            "chat_available": _model_available(config.model, config.ollama_base_url),
             "messages": [m.name for m in workspace.catalog.list()],
         }
 
@@ -222,21 +227,26 @@ def create_app(workspace_dir: Path | str = "web_runs") -> FastAPI:
                     "unavailable. The Review tab works without it."
                 ),
             )
+        if not _model_available(config.model, config.ollama_base_url):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    f"The model {config.model!r} is not installed in the local "
+                    f"runtime. Run: ollama pull {config.model}. "
+                    "The Review tab works without it."
+                ),
+            )
         collected: list[str] = []
 
-        def callback(event) -> None:
-            from openhands.sdk import LLMConvertibleEvent
+        try:
+            conversation = build_conversation(
+                config, callbacks=[collect_agent_text(collected)]
+            )
+            conversation.send_message(request.message)
+            conversation.run()
+        except Exception as exc:  # noqa: BLE001 - surface the reason to the UI
+            raise HTTPException(status_code=502, detail=f"Chat failed: {exc}") from exc
 
-            if isinstance(event, LLMConvertibleEvent):
-                message = event.to_llm_message()
-                if getattr(message, "role", "") == "assistant":
-                    content = getattr(message, "content", None)
-                    if isinstance(content, str) and content.strip():
-                        collected.append(content)
-
-        conversation = build_conversation(config, callbacks=[callback])
-        conversation.send_message(request.message)
-        conversation.run()
         return {"reply": collected[-1] if collected else "(no reply)"}
 
     return app
@@ -255,6 +265,45 @@ def _ollama_reachable(base_url: str | None) -> bool:
             return True
     except OSError:
         return False
+
+
+def _model_available(model: str, base_url: str | None) -> bool:
+    """Whether ``model`` is actually pulled in the local runtime.
+
+    The health badge must reflect this: a running server with the model missing
+    otherwise reports "chat: ready" and only fails once the user sends a message.
+    """
+    if not _ollama_reachable(base_url):
+        return False
+    name = model.split("/", 1)[1] if "/" in model else model
+    host_port = base_url.replace("http://", "").replace("https://", "").split("/")[0]
+    host, _, port = host_port.partition(":")
+    try:
+        with socket.create_connection(
+            (host or "127.0.0.1", int(port or 11434)), timeout=2
+        ) as sock:
+            request = (
+                "GET /api/tags HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+            )
+            sock.sendall(request.encode())
+            chunks = []
+            while True:
+                chunk = sock.recv(65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        body = b"".join(chunks).split(b"\r\n\r\n", 1)
+        if len(body) < 2:
+            return False
+        models = json.loads(body[1].decode("utf-8", errors="replace"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+
+    installed = {
+        m.get("name", "") for m in models.get("models", []) if isinstance(m, dict)
+    }
+    # Ollama reports "qwen2.5:3b-instruct"; accept an implicit ":latest" too.
+    return name in installed or f"{name}:latest" in installed
 
 
 def run(
