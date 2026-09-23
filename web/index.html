@@ -144,6 +144,40 @@
   .group .gname { font-weight: 600; }
   .group .gcount { color: var(--muted); font-size: 12px; }
   .group table { margin-top: 2px; }
+  .section-title { font-size: 13px; margin: 22px 0 6px; color: var(--accent); font-weight: 600; }
+  .library { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .lib-item {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 12px; font-size: 12.5px;
+  }
+  .lib-item.chosen { border-color: #2f6f4a; }
+  .lib-item .lib-name { font-weight: 600; }
+  .lib-item .lib-preview { color: var(--muted); flex: 1 1 200px; }
+  .lib-item .lib-size { color: var(--muted); font-size: 11.5px; }
+  .lib-item button {
+    background: transparent; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 6px; padding: 3px 8px; font-size: 11.5px; cursor: pointer;
+  }
+  .lib-item button:hover { color: var(--missing); border-color: #7a2c2c; }
+  .reason-list { padding: 6px 0 12px; }
+  .reason {
+    display: flex; align-items: baseline; gap: 8px; padding: 4px 0;
+    border-bottom: 1px solid #232833; font-size: 12.5px;
+  }
+  .reason:last-child { border-bottom: none; }
+  .reason .r-signal { min-width: 96px; color: var(--muted); }
+  .reason .r-bar {
+    flex: 0 0 90px; height: 7px; background: #232833; border-radius: 4px; overflow: hidden;
+  }
+  .reason .r-bar span { display: block; height: 100%; background: var(--accent); }
+  .reason.match .r-bar span { background: var(--extra); }
+  .reason.mismatch .r-bar span { background: var(--missing); }
+  .reason .r-text { color: var(--muted); }
+  select {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 10px; font-size: 12.5px; min-width: 220px;
+  }
 </style>
 </head>
 <body>
@@ -160,28 +194,32 @@
 <main>
   <section class="panel" id="tab-review">
     <p class="status">
-      Load the baseline <b>AirShoppingRS</b> and the new one to see exactly what is missing and what is
-      extra. The <b>AirShoppingRQ</b> is optional and adds trip-shape and passenger context. The
-      baseline is kept in this browser until you clear it.
+      Build a <b>baseline library</b> from previous releases, then load the new
+      <b>AirShoppingRS</b>. The tool compares it against the <b>nearest-looking</b>
+      baseline automatically, and you can override the choice. An
+      <b>AirShoppingRQ</b> is optional and adds trip-shape and passenger context.
+      Everything stays in this browser.
     </p>
 
+    <h3 class="section-title">1. Baseline library</h3>
+    <p class="status">
+      Add as many baselines as you like. Each is kept in this browser until you
+      remove it.
+    </p>
+    <div class="row">
+      <input type="file" id="file-baselines" accept=".xml,text/xml,application/xml" multiple />
+      <label class="pick" for="file-baselines">Add baseline responses</label>
+      <input type="file" id="file-baseline_rq" accept=".xml,text/xml,application/xml" />
+      <label class="pick" for="file-baseline_rq">Add request (optional)</label>
+      <button class="ghost" id="clear-btn">Clear library</button>
+      <span class="status" id="library-status"></span>
+    </div>
+    <div id="library-list" class="library"></div>
+
+    <h3 class="section-title">2. New response</h3>
     <div class="grid">
-      <div class="slot" id="slot-baseline_rq">
-        <h3>1. AirShoppingRQ <span class="badge" style="border-color:#2b303b;color:#9aa4b2">optional</span></h3>
-        <p>Trip shape and passenger mix.</p>
-        <input type="file" id="file-baseline_rq" accept=".xml,text/xml,application/xml" />
-        <label class="pick" for="file-baseline_rq">Choose file</label>
-        <div class="file-name" data-for="baseline_rq"></div>
-      </div>
-      <div class="slot" id="slot-baseline_rs">
-        <h3>2. Baseline AirShoppingRS</h3>
-        <p>The previous release.</p>
-        <input type="file" id="file-baseline_rs" accept=".xml,text/xml,application/xml" />
-        <label class="pick" for="file-baseline_rs">Choose file</label>
-        <div class="file-name" data-for="baseline_rs"></div>
-      </div>
       <div class="slot" id="slot-new_rs">
-        <h3>3. New AirShoppingRS</h3>
+        <h3>New AirShoppingRS</h3>
         <p>The release under review.</p>
         <input type="file" id="file-new_rs" accept=".xml,text/xml,application/xml" />
         <label class="pick" for="file-new_rs">Choose file</label>
@@ -190,9 +228,21 @@
     </div>
 
     <div class="row">
-      <button class="primary" id="review-btn" disabled>Compare responses</button>
-      <button class="ghost" id="clear-btn">Clear all</button>
+      <button class="primary" id="review-btn" disabled>Compare with nearest baseline</button>
       <span class="status" id="review-status"></span>
+    </div>
+
+    <div id="match-output" class="hidden">
+      <h3 class="section-title">Baseline match</h3>
+      <p class="status" id="match-verdict"></p>
+      <div class="row">
+        <label class="status" for="match-select">Baseline to compare against:</label>
+        <select id="match-select"></select>
+      </div>
+      <details class="reveal" id="match-details">
+        <summary>Why this baseline was chosen</summary>
+        <div id="match-reasons" class="reason-list"></div>
+      </details>
     </div>
 
     <div id="review-output" class="hidden">
@@ -274,6 +324,8 @@
 <script src="ndc-report.js"></script>
 <script src="ndc-trip.js"></script>
 <script src="ndc-chat.js"></script>
+<script src="ndc-similarity.js"></script>
+<script src="ndc-store.js"></script>
 <script>
 (function () {
   "use strict";
@@ -285,54 +337,135 @@
     });
   };
 
-  var SLOTS = ["baseline_rq", "baseline_rs", "new_rs"];
-  var STORAGE_KEY = "airline-cmp.baseline.v1";
-  var files = {};        // slot -> { name, text }
+  var files = { new_rs: null, baseline_rq: null };
   var lastReview = null;
+  var baselines = [];      // [{ name, label, text }] loaded from storage
+  var matchResults = [];   // ranked MatchResults for the current new response
+  var chosenBaseline = null;
+
+  // Dependencies the similarity engine delegates to, so it does not have to
+  // duplicate the diff engine's entity handling.
+  var simDeps = {
+    ENTITY_KEYS: NDC.ENTITY_KEYS,
+    flatten: NDC.flatten,
+    tripShapeFromRs: function (rootEl) { return NDCTrip.tripShapeFromRs(rootEl); },
+  };
 
   function setStatus(text) { $("#review-status").textContent = text || ""; }
+  function setLibraryStatus(text) { $("#library-status").textContent = text || ""; }
 
   function updateButton() {
-    $("#review-btn").disabled = !(files.baseline_rs && files.new_rs);
+    $("#review-btn").disabled = !(files.new_rs && baselines.length);
   }
 
-  // --- baseline persistence -------------------------------------------------
-  // The baseline and request are retained until explicitly cleared, so a new
-  // release response can be dropped in without re-loading the reference.
-  function persistBaseline() {
-    try {
-      var payload = {};
-      SLOTS.forEach(function (slot) {
-        if (files[slot]) payload[slot] = files[slot];
-      });
-      if (Object.keys(payload).length) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    } catch (e) {
-      // Storage may be unavailable (private mode, file:// restrictions).
-      setStatus("note: browser storage unavailable, files will not be retained");
+  // --- baseline library -----------------------------------------------------
+  // Baselines live in IndexedDB because real responses are large; see ndc-store.js.
+
+  async function refreshLibrary() {
+    var available = await NDCStore.isAvailable();
+    if (!available) {
+      setLibraryStatus("browser storage unavailable — baselines will not persist");
     }
+    try {
+      baselines = await NDCStore.list();
+    } catch (e) {
+      baselines = [];
+      setLibraryStatus("could not read stored baselines: " + e.message);
+    }
+    renderLibrary();
+    updateButton();
   }
 
-  function restoreBaseline() {
-    var raw = null;
-    try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { return; }
-    if (!raw) return;
-    var payload;
-    try { payload = JSON.parse(raw); } catch (e) { return; }
-    SLOTS.forEach(function (slot) {
-      var entry = payload[slot];
-      if (!entry || !entry.text) return;
-      try { NDC.parseXml(entry.text); } catch (e) { return; }
-      files[slot] = entry;
-      $("#slot-" + slot).classList.add("filled");
-      var nameEl = document.querySelector('.file-name[data-for="' + slot + '"]');
-      nameEl.className = "file-name";
-      nameEl.textContent = entry.name + " (retained)";
+  function renderLibrary() {
+    var host = $("#library-list");
+    if (!baselines.length) {
+      host.innerHTML = '<p class="status">No baselines yet. Add one or more previous responses above.</p>';
+      return;
+    }
+    host.innerHTML = baselines.map(function (b) {
+      var chosen = chosenBaseline === b.name;
+      return '<div class="lib-item' + (chosen ? " chosen" : "") + '">' +
+        '<span class="lib-name">' + esc(b.label) + "</span>" +
+        '<span class="lib-preview">' + esc(NDCStorePreview(b.text)) + "</span>" +
+        '<span class="lib-size">' + Math.round(b.text.length / 1024) + " KB</span>" +
+        (chosen ? '<span class="tag modified">chosen</span>' : "") +
+        '<button data-remove="' + esc(b.name) + '">Remove</button>' +
+        "</div>";
+    }).join("");
+
+    host.querySelectorAll("button[data-remove]").forEach(function (btn) {
+      btn.addEventListener("click", async function () {
+        await NDCStore.remove(btn.getAttribute("data-remove"));
+        if (chosenBaseline === btn.getAttribute("data-remove")) chosenBaseline = null;
+        setLibraryStatus("removed");
+        await refreshLibrary();
+        // Re-run the match so the choice reflects the shrunken library.
+        if (files.new_rs) runMatch();
+      });
     });
-    updateButton();
+  }
+
+  // A short preview of a baseline's airports, so the list is readable at a glance.
+  function NDCStorePreview(text) {
+    var codes = [];
+    var seen = {};
+    var re = /<(?:\w+:)?(?:OriginCode|AirportCode)>([^<]+)<\/(?:\w+:)?(?:OriginCode|AirportCode)>/g;
+    var match;
+    while ((match = re.exec(text)) !== null && codes.length < 4) {
+      var code = match[1].trim();
+      if (!seen[code]) { seen[code] = true; codes.push(code); }
+    }
+    return codes.join(" \u2192 ") || "(no airport codes)";
+  }
+
+  async function addBaselines(fileList) {
+    var list = Array.prototype.slice.call(fileList || []);
+    if (!list.length) return;
+    setLibraryStatus("reading " + list.length + " file(s)\u2026");
+    var added = 0;
+    var rejected = [];
+
+    for (var i = 0; i < list.length; i++) {
+      var file = list[i];
+      var text = await readFile(file);
+      if (text === null) { rejected.push(file.name + " (unreadable)"); continue; }
+      // Validate before storing so a malformed file cannot poison the library.
+      try {
+        NDC.parseXml(text);
+      } catch (err) {
+        rejected.push(file.name + " (" + err.message + ")");
+        continue;
+      }
+      // Names must be stable and unique; the file name plus a counter if needed.
+      var name = file.name;
+      var suffix = 1;
+      while (baselines.some(function (b) { return b.name === name; })) {
+        suffix += 1;
+        name = file.name + " (" + suffix + ")";
+      }
+      try {
+        await NDCStore.put(name, file.name, text);
+        baselines.push({ name: name, label: file.name, text: text });
+        added += 1;
+      } catch (err) {
+        rejected.push(file.name + " (storage: " + err.message + ")");
+      }
+    }
+
+    setLibraryStatus(
+      added + " baseline(s) added" + (rejected.length ? "; skipped: " + rejected.join(", ") : "")
+    );
+    await refreshLibrary();
+    if (files.new_rs && added) runMatch();
+  }
+
+  function readFile(file) {
+    return new Promise(function (resolve) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result || "")); };
+      reader.onerror = function () { resolve(null); };
+      reader.readAsText(file);
+    });
   }
 
   // --- tabs -----------------------------------------------------------------
@@ -347,75 +480,177 @@
   });
 
   // --- uploads --------------------------------------------------------------
-  SLOTS.forEach(function (slot) {
-    var input = $("#file-" + slot);
-    input.addEventListener("change", function () {
-      var file = input.files[0];
-      if (!file) return;
-      var nameEl = document.querySelector('.file-name[data-for="' + slot + '"]');
-      var reader = new FileReader();
-      reader.onload = function () {
-        var text = String(reader.result || "");
-        try {
-          NDC.parseXml(text);
-        } catch (err) {
-          files[slot] = null;
-          $("#slot-" + slot).classList.remove("filled");
-          $("#slot-" + slot).classList.add("error");
-          nameEl.className = "file-name err";
-          nameEl.textContent = file.name + " — " + err.message;
-          persistBaseline();
-          updateButton();
-          return;
-        }
-        files[slot] = { name: file.name, text: text };
-        $("#slot-" + slot).classList.remove("error");
-        $("#slot-" + slot).classList.add("filled");
-        nameEl.className = "file-name";
-        nameEl.textContent = file.name + " → <" + NDC.localname(NDC.parseXml(text).tagName) + ">";
-        setStatus("loaded " + file.name);
-        persistBaseline();
-        updateButton();
-      };
-      reader.onerror = function () {
-        nameEl.className = "file-name err";
-        nameEl.textContent = file.name + " — could not read file";
-      };
-      reader.readAsText(file);
-    });
+  $("#file-baselines").addEventListener("change", function (event) {
+    addBaselines(event.target.files);
+    event.target.value = "";
   });
 
-  $("#clear-btn").addEventListener("click", function () {
-    SLOTS.forEach(function (slot) {
-      files[slot] = null;
-      $("#file-" + slot).value = "";
-      var nameEl = document.querySelector('.file-name[data-for="' + slot + '"]');
-      nameEl.textContent = "";
+  $("#file-baseline_rq").addEventListener("change", function (event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    var nameEl = document.querySelector('.file-name[data-for="baseline_rq"]');
+    readFile(file).then(function (text) {
+      if (text === null) { setLibraryStatus("could not read " + file.name); return; }
+      try {
+        NDC.parseXml(text);
+      } catch (err) {
+        files.baseline_rq = null;
+        nameEl.textContent = file.name + " \u2014 " + err.message;
+        nameEl.className = "file-name err";
+        return;
+      }
+      files.baseline_rq = { name: file.name, text: text };
       nameEl.className = "file-name";
-      $("#slot-" + slot).classList.remove("filled", "error");
+      nameEl.textContent = file.name + " \u2192 <" + NDC.localname(NDC.parseXml(text).tagName) + ">";
+      setLibraryStatus("request loaded \u2014 trip and passenger detail will be used");
     });
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+    event.target.value = "";
+  });
+
+  $("#file-new_rs").addEventListener("change", function (event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    var nameEl = document.querySelector('.file-name[data-for="new_rs"]');
+    readFile(file).then(function (text) {
+      if (text === null) { setStatus("could not read " + file.name); return; }
+      try {
+        NDC.parseXml(text);
+      } catch (err) {
+        files.new_rs = null;
+        $("#slot-new_rs").classList.add("error");
+        nameEl.className = "file-name err";
+        nameEl.textContent = file.name + " \u2014 " + err.message;
+        updateButton();
+        return;
+      }
+      files.new_rs = { name: file.name, text: text };
+      $("#slot-new_rs").classList.remove("error");
+      $("#slot-new_rs").classList.add("filled");
+      nameEl.className = "file-name";
+      nameEl.textContent = file.name + " \u2192 <" + NDC.localname(NDC.parseXml(text).tagName) + ">";
+      updateButton();
+      setStatus("new response loaded");
+      if (baselines.length) runMatch();
+    });
+    event.target.value = "";
+  });
+
+  $("#clear-btn").addEventListener("click", async function () {
+    await NDCStore.clear();
+    baselines = [];
+    chosenBaseline = null;
+    matchResults = [];
+    files.baseline_rq = null;
+    $("#file-baseline_rq").value = "";
+    document.querySelector('.file-name[data-for="baseline_rq"]').textContent = "";
+    $("#match-output").classList.add("hidden");
     $("#review-output").classList.add("hidden");
-    setStatus("cleared");
+    setLibraryStatus("library cleared");
+    setStatus("");
     lastReview = null;
+    renderLibrary();
     updateButton();
   });
 
+  // --- matching -------------------------------------------------------------
+  // Rank the library against the new response and pick the nearest, so a review
+  // is never silently run against an unrelated baseline.
+  function runMatch() {
+    if (!files.new_rs || !baselines.length) return;
+    $("#match-output").classList.remove("hidden");
+    try {
+      var newRoot = NDC.parseXml(files.new_rs.text);
+      var candidates = {};
+      baselines.forEach(function (b) {
+        try {
+          candidates[b.name] = { root: NDC.parseXml(b.text) };
+        } catch (e) { /* skip unparseable */ }
+      });
+      if (!Object.keys(candidates).length) {
+        $("#match-verdict").textContent = "No parseable baselines in the library.";
+        return;
+      }
+      matchResults = NDCSimilarity.rankCandidates(newRoot, candidates, files.new_rs.name, simDeps);
+
+      // Keep a manual choice if it still exists in the library.
+      var stillThere = matchResults.some(function (r) { return r.label === chosenBaseline; });
+      if (!stillThere) chosenBaseline = matchResults[0].label;
+
+      renderMatch();
+    } catch (err) {
+      $("#match-verdict").textContent = "Could not match baselines: " + err.message;
+    }
+  }
+
+  function renderMatch() {
+    var chosen = matchResults.find(function (r) { return r.label === chosenBaseline; }) ||
+      matchResults[0];
+    var best = matchResults[0];
+
+    var verdict = "Nearest baseline: " + chosen.fingerprint.label +
+      " \u2014 score " + (chosen.score * 100).toFixed(0) + "% (" + chosen.confidence + " confidence).";
+    if (chosen.label !== best.label) {
+      verdict += " Auto-match would have chosen " + best.fingerprint.label + ".";
+    }
+    if (chosen.weak) {
+      verdict += " Warning: this is a weak match \u2014 the baselines may not cover this request.";
+    }
+    if (chosen.low_confidence) {
+      verdict += " Few comparable fields, so treat the match as a rough guide.";
+    }
+    $("#match-verdict").textContent = verdict;
+
+    var select = $("#match-select");
+    select.innerHTML = matchResults.map(function (r) {
+      return '<option value="' + esc(r.label) + '"' + (r.label === chosen.label ? " selected" : "") +
+        ">" + esc(r.fingerprint.label) + " \u2014 " + (r.score * 100).toFixed(0) + "%</option>";
+    }).join("");
+
+    // Show the reasons for the chosen baseline, signed by whether each helped.
+    var reasons = chosen.reasons.slice().sort(function (a, b) {
+      return b.score * b.weight - a.score * a.weight;
+    });
+    $("#match-reasons").innerHTML = reasons.map(function (r) {
+      var pct = Math.round(r.score * 100);
+      var cls = r.signal === "decisive_mismatch"
+        ? "mismatch"
+        : r.score >= 0.7 ? "match" : r.score >= 0.3 ? "" : "mismatch";
+      return '<div class="reason ' + cls + '">' +
+        '<span class="r-signal">' + esc(r.signal.replace(/_/g, " ")) + "</span>" +
+        '<span class="r-bar"><span style="width:' + pct + '%"></span></span>' +
+        '<span class="r-text">' + esc(r.explanation) + "</span></div>";
+    }).join("");
+
+    renderLibrary();
+  }
+
+  $("#match-select").addEventListener("change", function (event) {
+    chosenBaseline = event.target.value;
+    renderMatch();
+    // Re-run the comparison against the newly chosen baseline.
+    if (lastReview) compare();
+  });
+
   // --- compare --------------------------------------------------------------
-  $("#review-btn").addEventListener("click", function () {
-    if (!files.baseline_rs || !files.new_rs) return;
-    setStatus("comparing…");
+  $("#review-btn").addEventListener("click", compare);
+
+  function compare() {
+    if (!files.new_rs || !baselines.length) return;
+    setStatus("comparing\u2026");
     $("#review-btn").disabled = true;
 
     setTimeout(function () {
       try {
-        var report = NDC.diffXml(
-          files.baseline_rs.text,
-          files.new_rs.text,
-          files.baseline_rs.name,
-          files.new_rs.name
-        );
-        var baseSummary = NDC.summarizeMessage(NDC.parseXml(files.baseline_rs.text), files.baseline_rs.name);
+        // Resolve which baseline to use, honouring a manual override.
+        if (!matchResults.length) runMatch();
+        var chosen = baselines.find(function (b) { return b.name === chosenBaseline; });
+        if (!chosen) {
+          setStatus("choose a baseline first");
+          return;
+        }
+
+        var report = NDC.diffXml(chosen.text, files.new_rs.text, chosen.label, files.new_rs.name);
+        var baseSummary = NDC.summarizeMessage(NDC.parseXml(chosen.text), chosen.label);
         var newSummary = NDC.summarizeMessage(NDC.parseXml(files.new_rs.text), files.new_rs.name);
         var n = NDCReport.narrative(report, baseSummary.entity_counts, newSummary.entity_counts);
         var reviewRender = NDCReport.renderReview(report, baseSummary.entity_counts, newSummary.entity_counts);
@@ -425,7 +660,7 @@
         try {
           var baseShape = files.baseline_rq
             ? NDCTrip.tripShapeFromRq(NDC.parseXml(files.baseline_rq.text))
-            : NDCTrip.tripShapeFromRs(NDC.parseXml(files.baseline_rs.text));
+            : NDCTrip.tripShapeFromRs(NDC.parseXml(chosen.text));
           var newShape = NDCTrip.tripShapeFromRs(NDC.parseXml(files.new_rs.text));
           tripChange = NDCTrip.compareTripShape(baseShape, newShape);
         } catch (e) { tripChange = null; }
@@ -437,6 +672,8 @@
           narrative: n,
           reviewRender: reviewRender,
           tripChange: tripChange,
+          baselineLabel: chosen.label,
+          match: matchResults.find(function (r) { return r.label === chosen.name; }) || null,
         };
         render(report, baseSummary, newSummary, n, reviewRender, tripChange);
         setStatus("done");
@@ -446,7 +683,7 @@
         $("#review-btn").disabled = false;
       }
     }, 0);
-  });
+  }
 
   // Entity changes grouped by type, each group collapsible. A real release pair
   // can involve hundreds of offers; one row per identifier is unreadable, so the
@@ -601,6 +838,18 @@
       baseline_inventory: lastReview.baselineInventory,
       new_inventory: lastReview.newInventory,
       narrative: lastReview.narrative,
+      // Which baseline was compared against, and how that was decided, so a
+      // report can be audited later without re-running the match.
+      baseline_chosen: lastReview.baselineLabel || null,
+      baseline_match: lastReview.match
+        ? {
+            score: lastReview.match.score,
+            confidence: lastReview.match.confidence,
+            weak: lastReview.match.weak,
+            low_confidence: lastReview.match.low_confidence,
+            reasons: lastReview.match.reasons,
+          }
+        : null,
       trip_change: lastReview.tripChange ? {
         changed: lastReview.tripChange.changed,
         trip_type_changed: lastReview.tripChange.trip_type_changed,
@@ -661,7 +910,7 @@
     $("#suggestions").appendChild(b);
   });
 
-  restoreBaseline();
+  refreshLibrary();
   addMessage("airline-cmp", NDCChat.helpText());
 })();
 </script>

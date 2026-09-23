@@ -19,7 +19,12 @@ optional chat layer runs against a local Ollama model.
 | `airshop --compare a b` CLI diff | no | no |
 | Generate AirShoppingRQ/RS locally | no | no |
 | Detect trip-type and passenger changes | no | no |
+| Match a new response against a baseline library | no | no |
 | Chat explanation of a diff | yes (local Ollama) | no |
+
+A **baseline library** can hold many previous responses. Each new release is
+matched against the nearest-looking baseline automatically, with the reasoning
+shown, so a review is never silently run against an unrelated baseline.
 
 The diff also distinguishes **session metadata** (timestamps, transaction IDs)
 from content: those fields are regenerated on every response, so they are reported

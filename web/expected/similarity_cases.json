@@ -1,0 +1,400 @@
+{
+  "new": "<?xml version='1.0' encoding='UTF-8'?>\n<iata:AirShoppingRS xmlns:iata=\"http://www.iata.org/IATA/2015/00/2019.1\" xmlns:cns=\"http://www.iata.org/IATA/2015/00/2019.1/Country\" xmlns:cur=\"http://www.iata.org/IATA/2015/00/2019.1/Currency\" Version=\"21.3\">\n  <PayloadAttributes>\n    <TrxID>N1</TrxID>\n    <CorrelationID>N1</CorrelationID>\n    <Version>21.3</Version>\n    <Timestamp>2026-09-23T13:53:18+00:00</Timestamp>\n    <Sender>\n      <EnabledSystem>\n        <SystemID>airshop-local</SystemID>\n      </EnabledSystem>\n    </Sender>\n  </PayloadAttributes>\n  <Response>\n    <DataLists>\n      <PaxList>\n        <Pax>\n          <PaxID>ADT1</PaxID>\n          <PTC>ADT</PTC>\n        </Pax>\n        <Pax>\n          <PaxID>ADT2</PaxID>\n          <PTC>ADT</PTC>\n        </Pax>\n      </PaxList>\n      <OriginDestList>\n        <OriginDest>\n          <OriginCode>LHR</OriginCode>\n          <DestCode>JFK</DestCode>\n          <OriginDestID>OD_LHRJFK</OriginDestID>\n          <PaxJourneyRefID>PJ_LHRJFK_2027-03-15</PaxJourneyRefID>\n        </OriginDest>\n      </OriginDestList>\n      <FlightSegmentList>\n        <FlightSegment>\n          <SegmentID>SEG1_1</SegmentID>\n          <Departure>\n            <AirportCode>LHR</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>21:00:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>IST</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>23:40:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>AF</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Air France</MarketingCarrierName>\n          <MarketingFlightNumber>AF118</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>AF</OperatingCarrierAirlineID>\n          <AircraftTypeCode>320</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT160M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG1_2</SegmentID>\n          <Departure>\n            <AirportCode>IST</AirportCode>\n            <Date>2027-03-16</Date>\n            <Time>02:24:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>JFK</AirportCode>\n            <Date>2027-03-16</Date>\n            <Time>10:24:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>AF</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Air France</MarketingCarrierName>\n          <MarketingFlightNumber>AF101</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>AF</OperatingCarrierAirlineID>\n          <AircraftTypeCode>320</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT480M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG2_1</SegmentID>\n          <Departure>\n            <AirportCode>LHR</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>16:15:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>MAD</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>17:55:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>AF</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Air France</MarketingCarrierName>\n          <MarketingFlightNumber>AF677</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>AF</OperatingCarrierAirlineID>\n          <AircraftTypeCode>77W</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT100M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG2_2</SegmentID>\n          <Departure>\n            <AirportCode>MAD</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>20:52:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>IST</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>22:52:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>AF</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Air France</MarketingCarrierName>\n          <MarketingFlightNumber>AF802</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>AF</OperatingCarrierAirlineID>\n          <AircraftTypeCode>320</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT120M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG2_3</SegmentID>\n          <Departure>\n            <AirportCode>IST</AirportCode>\n            <Date>2027-03-16</Date>\n            <Time>01:12:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>JFK</AirportCode>\n            <Date>2027-03-16</Date>\n            <Time>09:22:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>AF</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Air France</MarketingCarrierName>\n          <MarketingFlightNumber>AF980</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>AF</OperatingCarrierAirlineID>\n          <AircraftTypeCode>789</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT490M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG4_1</SegmentID>\n          <Departure>\n            <AirportCode>LHR</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>11:15:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>FCO</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>12:55:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>EK</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Emirates</MarketingCarrierName>\n          <MarketingFlightNumber>EK159</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>EK</OperatingCarrierAirlineID>\n          <AircraftTypeCode>738</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT100M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG4_2</SegmentID>\n          <Departure>\n            <AirportCode>FCO</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>14:18:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>MAD</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>16:43:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>EK</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Emirates</MarketingCarrierName>\n          <MarketingFlightNumber>EK453</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>EK</OperatingCarrierAirlineID>\n          <AircraftTypeCode>350</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT145M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG4_3</SegmentID>\n          <Departure>\n            <AirportCode>MAD</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>19:25:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>JFK</AirportCode>\n            <Date>2027-03-16</Date>\n            <Time>03:05:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>EK</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Emirates</MarketingCarrierName>\n          <MarketingFlightNumber>EK172</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>EK</OperatingCarrierAirlineID>\n          <AircraftTypeCode>77W</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT460M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG3_1</SegmentID>\n          <Departure>\n            <AirportCode>LHR</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>17:30:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>IST</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>20:10:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>AF</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Air France</MarketingCarrierName>\n          <MarketingFlightNumber>AF408</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>AF</OperatingCarrierAirlineID>\n          <AircraftTypeCode>321</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT160M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG3_2</SegmentID>\n          <Departure>\n            <AirportCode>IST</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>22:21:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>JFK</AirportCode>\n            <Date>2027-03-16</Date>\n            <Time>06:46:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>AF</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Air France</MarketingCarrierName>\n          <MarketingFlightNumber>AF164</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>AF</OperatingCarrierAirlineID>\n          <AircraftTypeCode>320</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT505M</Duration>\n        </FlightSegment>\n      </FlightSegmentList>\n      <FareList>\n        <Fare>\n          <FareCode>CQ420</FareCode>\n          <FareBasisCode>CQ420</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>true</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n        <Fare>\n          <FareCode>CW527</FareCode>\n          <FareBasisCode>CW527</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>true</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n        <Fare>\n          <FareCode>CN847</FareCode>\n          <FareBasisCode>CN847</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>true</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n        <Fare>\n          <FareCode>CS767</FareCode>\n          <FareBasisCode>CS767</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>true</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n      </FareList>\n      <cur:CurParameter>\n        <cur:CurCode>USD</cur:CurCode>\n        <cur:DecimalsAllowedNumber>2</cur:DecimalsAllowedNumber>\n      </cur:CurParameter>\n    </DataLists>\n    <Offers>\n      <Offer>\n        <OfferID>IT1</OfferID>\n        <OwnerCode>AF</OwnerCode>\n        <ValidatingCarrierCode>AF</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG1_1\"/>\n            <FlightSegmentReference ref=\"SEG1_2\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_LHRJFK_2027-03-15</OriginDestRef>\n          <FareRef>CQ420</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT1-OI1</OfferItemID>\n          <CabinTypeCode>C</CabinTypeCode>\n          <SeatsAvailable>3</SeatsAvailable>\n          <ItineraryDuration>PT804M</ItineraryDuration>\n          <Connections>1</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">4438.02</TotalAmount>\n            <BaseAmount CurCode=\"USD\">3550.42</BaseAmount>\n            <TaxAmount CurCode=\"USD\">887.60</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n      <Offer>\n        <OfferID>IT2</OfferID>\n        <OwnerCode>AF</OwnerCode>\n        <ValidatingCarrierCode>AF</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG2_1\"/>\n            <FlightSegmentReference ref=\"SEG2_2\"/>\n            <FlightSegmentReference ref=\"SEG2_3\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_LHRJFK_2027-03-15</OriginDestRef>\n          <FareRef>CW527</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT2-OI1</OfferItemID>\n          <CabinTypeCode>C</CabinTypeCode>\n          <SeatsAvailable>2</SeatsAvailable>\n          <ItineraryDuration>PT1027M</ItineraryDuration>\n          <Connections>2</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">5212.36</TotalAmount>\n            <BaseAmount CurCode=\"USD\">4169.89</BaseAmount>\n            <TaxAmount CurCode=\"USD\">1042.47</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n      <Offer>\n        <OfferID>IT4</OfferID>\n        <OwnerCode>EK</OwnerCode>\n        <ValidatingCarrierCode>EK</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG4_1\"/>\n            <FlightSegmentReference ref=\"SEG4_2\"/>\n            <FlightSegmentReference ref=\"SEG4_3\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_LHRJFK_2027-03-15</OriginDestRef>\n          <FareRef>CN847</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT4-OI1</OfferItemID>\n          <CabinTypeCode>C</CabinTypeCode>\n          <SeatsAvailable>2</SeatsAvailable>\n          <ItineraryDuration>PT950M</ItineraryDuration>\n          <Connections>2</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">5370.11</TotalAmount>\n            <BaseAmount CurCode=\"USD\">4296.09</BaseAmount>\n            <TaxAmount CurCode=\"USD\">1074.02</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n      <Offer>\n        <OfferID>IT3</OfferID>\n        <OwnerCode>AF</OwnerCode>\n        <ValidatingCarrierCode>AF</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG3_1\"/>\n            <FlightSegmentReference ref=\"SEG3_2\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_LHRJFK_2027-03-15</OriginDestRef>\n          <FareRef>CS767</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT3-OI1</OfferItemID>\n          <CabinTypeCode>C</CabinTypeCode>\n          <SeatsAvailable>8</SeatsAvailable>\n          <ItineraryDuration>PT796M</ItineraryDuration>\n          <Connections>1</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">5839.03</TotalAmount>\n            <BaseAmount CurCode=\"USD\">4671.22</BaseAmount>\n            <TaxAmount CurCode=\"USD\">1167.81</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n    </Offers>\n  </Response>\n</iata:AirShoppingRS>\n",
+  "baselines": {
+    "LHR-JFK-Y-1ADT": "<?xml version='1.0' encoding='UTF-8'?>\n<iata:AirShoppingRS xmlns:iata=\"http://www.iata.org/IATA/2015/00/2019.1\" xmlns:cns=\"http://www.iata.org/IATA/2015/00/2019.1/Country\" xmlns:cur=\"http://www.iata.org/IATA/2015/00/2019.1/Currency\" Version=\"21.3\">\n  <PayloadAttributes>\n    <TrxID>B1</TrxID>\n    <CorrelationID>B1</CorrelationID>\n    <Version>21.3</Version>\n    <Timestamp>2026-09-23T13:53:18+00:00</Timestamp>\n    <Sender>\n      <EnabledSystem>\n        <SystemID>airshop-local</SystemID>\n      </EnabledSystem>\n    </Sender>\n  </PayloadAttributes>\n  <Response>\n    <DataLists>\n      <PaxList>\n        <Pax>\n          <PaxID>ADT1</PaxID>\n          <PTC>ADT</PTC>\n        </Pax>\n      </PaxList>\n      <OriginDestList>\n        <OriginDest>\n          <OriginCode>LHR</OriginCode>\n          <DestCode>JFK</DestCode>\n          <OriginDestID>OD_LHRJFK</OriginDestID>\n          <PaxJourneyRefID>PJ_LHRJFK_2027-03-15</PaxJourneyRefID>\n        </OriginDest>\n      </OriginDestList>\n      <FlightSegmentList>\n        <FlightSegment>\n          <SegmentID>SEG1_1</SegmentID>\n          <Departure>\n            <AirportCode>LHR</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>17:30:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>AMS</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>19:10:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>QR</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Qatar Airways</MarketingCarrierName>\n          <MarketingFlightNumber>QR145</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>QR</OperatingCarrierAirlineID>\n          <AircraftTypeCode>380</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT100M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG1_2</SegmentID>\n          <Departure>\n            <AirportCode>AMS</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>21:56:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>JFK</AirportCode>\n            <Date>2027-03-16</Date>\n            <Time>05:36:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>QR</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Qatar Airways</MarketingCarrierName>\n          <MarketingFlightNumber>QR128</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>QR</OperatingCarrierAirlineID>\n          <AircraftTypeCode>320</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT460M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG3</SegmentID>\n          <Departure>\n            <AirportCode>LHR</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>12:30:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>JFK</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>20:55:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>BA</MarketingCarrierAirlineID>\n          <MarketingCarrierName>British Airways</MarketingCarrierName>\n          <MarketingFlightNumber>BA888</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>BA</OperatingCarrierAirlineID>\n          <AircraftTypeCode>789</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT505M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG2_1</SegmentID>\n          <Departure>\n            <AirportCode>LHR</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>08:15:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>LGW</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>10:15:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>QR</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Qatar Airways</MarketingCarrierName>\n          <MarketingFlightNumber>QR389</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>QR</OperatingCarrierAirlineID>\n          <AircraftTypeCode>738</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT120M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG2_2</SegmentID>\n          <Departure>\n            <AirportCode>LGW</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>11:45:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>FCO</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>13:55:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>QR</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Qatar Airways</MarketingCarrierName>\n          <MarketingFlightNumber>QR242</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>QR</OperatingCarrierAirlineID>\n          <AircraftTypeCode>321</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT130M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG2_3</SegmentID>\n          <Departure>\n            <AirportCode>FCO</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>16:04:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>JFK</AirportCode>\n            <Date>2027-03-16</Date>\n            <Time>00:04:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>QR</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Qatar Airways</MarketingCarrierName>\n          <MarketingFlightNumber>QR313</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>QR</OperatingCarrierAirlineID>\n          <AircraftTypeCode>789</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT480M</Duration>\n        </FlightSegment>\n      </FlightSegmentList>\n      <FareList>\n        <Fare>\n          <FareCode>YX923</FareCode>\n          <FareBasisCode>YX923</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>true</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n        <Fare>\n          <FareCode>YV125</FareCode>\n          <FareBasisCode>YV125</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>false</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n        <Fare>\n          <FareCode>YL522</FareCode>\n          <FareBasisCode>YL522</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>false</Refundable>\n            <Changeable>false</Changeable>\n          </FareDetail>\n        </Fare>\n      </FareList>\n      <cur:CurParameter>\n        <cur:CurCode>USD</cur:CurCode>\n        <cur:DecimalsAllowedNumber>2</cur:DecimalsAllowedNumber>\n      </cur:CurParameter>\n    </DataLists>\n    <Offers>\n      <Offer>\n        <OfferID>IT1</OfferID>\n        <OwnerCode>QR</OwnerCode>\n        <ValidatingCarrierCode>QR</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG1_1\"/>\n            <FlightSegmentReference ref=\"SEG1_2\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_LHRJFK_2027-03-15</OriginDestRef>\n          <FareRef>YX923</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT1-OI1</OfferItemID>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <SeatsAvailable>5</SeatsAvailable>\n          <ItineraryDuration>PT726M</ItineraryDuration>\n          <Connections>1</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">781.89</TotalAmount>\n            <BaseAmount CurCode=\"USD\">625.51</BaseAmount>\n            <TaxAmount CurCode=\"USD\">156.38</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n      <Offer>\n        <OfferID>IT3</OfferID>\n        <OwnerCode>BA</OwnerCode>\n        <ValidatingCarrierCode>BA</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG3\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_LHRJFK_2027-03-15</OriginDestRef>\n          <FareRef>YV125</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT3-OI1</OfferItemID>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <SeatsAvailable>8</SeatsAvailable>\n          <ItineraryDuration>PT505M</ItineraryDuration>\n          <Connections>0</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">836.01</TotalAmount>\n            <BaseAmount CurCode=\"USD\">668.81</BaseAmount>\n            <TaxAmount CurCode=\"USD\">167.20</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n      <Offer>\n        <OfferID>IT2</OfferID>\n        <OwnerCode>QR</OwnerCode>\n        <ValidatingCarrierCode>QR</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG2_1\"/>\n            <FlightSegmentReference ref=\"SEG2_2\"/>\n            <FlightSegmentReference ref=\"SEG2_3\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_LHRJFK_2027-03-15</OriginDestRef>\n          <FareRef>YL522</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT2-OI1</OfferItemID>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <SeatsAvailable>1</SeatsAvailable>\n          <ItineraryDuration>PT949M</ItineraryDuration>\n          <Connections>2</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">938.54</TotalAmount>\n            <BaseAmount CurCode=\"USD\">750.83</BaseAmount>\n            <TaxAmount CurCode=\"USD\">187.71</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n    </Offers>\n  </Response>\n</iata:AirShoppingRS>\n",
+    "LHR-JFK-C-2ADT": "<?xml version='1.0' encoding='UTF-8'?>\n<iata:AirShoppingRS xmlns:iata=\"http://www.iata.org/IATA/2015/00/2019.1\" xmlns:cns=\"http://www.iata.org/IATA/2015/00/2019.1/Country\" xmlns:cur=\"http://www.iata.org/IATA/2015/00/2019.1/Currency\" Version=\"21.3\">\n  <PayloadAttributes>\n    <TrxID>B2</TrxID>\n    <CorrelationID>B2</CorrelationID>\n    <Version>21.3</Version>\n    <Timestamp>2026-09-23T13:53:18+00:00</Timestamp>\n    <Sender>\n      <EnabledSystem>\n        <SystemID>airshop-local</SystemID>\n      </EnabledSystem>\n    </Sender>\n  </PayloadAttributes>\n  <Response>\n    <DataLists>\n      <PaxList>\n        <Pax>\n          <PaxID>ADT1</PaxID>\n          <PTC>ADT</PTC>\n        </Pax>\n        <Pax>\n          <PaxID>ADT2</PaxID>\n          <PTC>ADT</PTC>\n        </Pax>\n      </PaxList>\n      <OriginDestList>\n        <OriginDest>\n          <OriginCode>LHR</OriginCode>\n          <DestCode>JFK</DestCode>\n          <OriginDestID>OD_LHRJFK</OriginDestID>\n          <PaxJourneyRefID>PJ_LHRJFK_2027-03-15</PaxJourneyRefID>\n        </OriginDest>\n      </OriginDestList>\n      <FlightSegmentList>\n        <FlightSegment>\n          <SegmentID>SEG2_1</SegmentID>\n          <Departure>\n            <AirportCode>LHR</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>15:15:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>FCO</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>17:05:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>LH</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Lufthansa</MarketingCarrierName>\n          <MarketingFlightNumber>LH789</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>LH</OperatingCarrierAirlineID>\n          <AircraftTypeCode>350</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT110M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG2_2</SegmentID>\n          <Departure>\n            <AirportCode>FCO</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>19:58:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>JFK</AirportCode>\n            <Date>2027-03-16</Date>\n            <Time>03:48:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>LH</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Lufthansa</MarketingCarrierName>\n          <MarketingFlightNumber>LH108</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>LH</OperatingCarrierAirlineID>\n          <AircraftTypeCode>320</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT470M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG1</SegmentID>\n          <Departure>\n            <AirportCode>LHR</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>09:30:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>JFK</AirportCode>\n            <Date>2027-03-15</Date>\n            <Time>17:10:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>QR</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Qatar Airways</MarketingCarrierName>\n          <MarketingFlightNumber>QR296</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>QR</OperatingCarrierAirlineID>\n          <AircraftTypeCode>738</AircraftTypeCode>\n          <CabinTypeCode>C</CabinTypeCode>\n          <CabinTypeName>Business</CabinTypeName>\n          <BookingClassCode>J</BookingClassCode>\n          <Duration>PT460M</Duration>\n        </FlightSegment>\n      </FlightSegmentList>\n      <FareList>\n        <Fare>\n          <FareCode>CQ860</FareCode>\n          <FareBasisCode>CQ860</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>true</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n        <Fare>\n          <FareCode>CK334</FareCode>\n          <FareBasisCode>CK334</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>true</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n      </FareList>\n      <cur:CurParameter>\n        <cur:CurCode>USD</cur:CurCode>\n        <cur:DecimalsAllowedNumber>2</cur:DecimalsAllowedNumber>\n      </cur:CurParameter>\n    </DataLists>\n    <Offers>\n      <Offer>\n        <OfferID>IT2</OfferID>\n        <OwnerCode>LH</OwnerCode>\n        <ValidatingCarrierCode>LH</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG2_1\"/>\n            <FlightSegmentReference ref=\"SEG2_2\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_LHRJFK_2027-03-15</OriginDestRef>\n          <FareRef>CQ860</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT2-OI1</OfferItemID>\n          <CabinTypeCode>C</CabinTypeCode>\n          <SeatsAvailable>2</SeatsAvailable>\n          <ItineraryDuration>PT753M</ItineraryDuration>\n          <Connections>1</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">3897.02</TotalAmount>\n            <BaseAmount CurCode=\"USD\">3117.62</BaseAmount>\n            <TaxAmount CurCode=\"USD\">779.40</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n      <Offer>\n        <OfferID>IT1</OfferID>\n        <OwnerCode>QR</OwnerCode>\n        <ValidatingCarrierCode>QR</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG1\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_LHRJFK_2027-03-15</OriginDestRef>\n          <FareRef>CK334</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT1-OI1</OfferItemID>\n          <CabinTypeCode>C</CabinTypeCode>\n          <SeatsAvailable>4</SeatsAvailable>\n          <ItineraryDuration>PT460M</ItineraryDuration>\n          <Connections>0</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">4362.99</TotalAmount>\n            <BaseAmount CurCode=\"USD\">3490.39</BaseAmount>\n            <TaxAmount CurCode=\"USD\">872.60</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n    </Offers>\n  </Response>\n</iata:AirShoppingRS>\n",
+    "DXB-BOM-Y-1ADT": "<?xml version='1.0' encoding='UTF-8'?>\n<iata:AirShoppingRS xmlns:iata=\"http://www.iata.org/IATA/2015/00/2019.1\" xmlns:cns=\"http://www.iata.org/IATA/2015/00/2019.1/Country\" xmlns:cur=\"http://www.iata.org/IATA/2015/00/2019.1/Currency\" Version=\"21.3\">\n  <PayloadAttributes>\n    <TrxID>B3</TrxID>\n    <CorrelationID>B3</CorrelationID>\n    <Version>21.3</Version>\n    <Timestamp>2026-09-23T13:53:18+00:00</Timestamp>\n    <Sender>\n      <EnabledSystem>\n        <SystemID>airshop-local</SystemID>\n      </EnabledSystem>\n    </Sender>\n  </PayloadAttributes>\n  <Response>\n    <DataLists>\n      <PaxList>\n        <Pax>\n          <PaxID>ADT1</PaxID>\n          <PTC>ADT</PTC>\n        </Pax>\n      </PaxList>\n      <OriginDestList>\n        <OriginDest>\n          <OriginCode>DXB</OriginCode>\n          <DestCode>BOM</DestCode>\n          <OriginDestID>OD_DXBBOM</OriginDestID>\n          <PaxJourneyRefID>PJ_DXBBOM_2027-05-10</PaxJourneyRefID>\n        </OriginDest>\n      </OriginDestList>\n      <FlightSegmentList>\n        <FlightSegment>\n          <SegmentID>SEG3</SegmentID>\n          <Departure>\n            <AirportCode>DXB</AirportCode>\n            <Date>2027-05-10</Date>\n            <Time>08:30:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>BOM</AirportCode>\n            <Date>2027-05-10</Date>\n            <Time>13:10:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>AA</MarketingCarrierAirlineID>\n          <MarketingCarrierName>American Airlines</MarketingCarrierName>\n          <MarketingFlightNumber>AA343</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>AA</OperatingCarrierAirlineID>\n          <AircraftTypeCode>320</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT280M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG2_1</SegmentID>\n          <Departure>\n            <AirportCode>DXB</AirportCode>\n            <Date>2027-05-10</Date>\n            <Time>20:15:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>DOH</AirportCode>\n            <Date>2027-05-10</Date>\n            <Time>23:25:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>EK</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Emirates</MarketingCarrierName>\n          <MarketingFlightNumber>EK577</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>EK</OperatingCarrierAirlineID>\n          <AircraftTypeCode>350</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT190M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG2_3</SegmentID>\n          <Departure>\n            <AirportCode>DOH</AirportCode>\n            <Date>2027-05-11</Date>\n            <Time>02:09:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>BOM</AirportCode>\n            <Date>2027-05-11</Date>\n            <Time>06:59:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>EK</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Emirates</MarketingCarrierName>\n          <MarketingFlightNumber>EK398</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>EK</OperatingCarrierAirlineID>\n          <AircraftTypeCode>321</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT290M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG1_1</SegmentID>\n          <Departure>\n            <AirportCode>DXB</AirportCode>\n            <Date>2027-05-10</Date>\n            <Time>10:45:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>DOH</AirportCode>\n            <Date>2027-05-10</Date>\n            <Time>13:40:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>LH</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Lufthansa</MarketingCarrierName>\n          <MarketingFlightNumber>LH928</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>LH</OperatingCarrierAirlineID>\n          <AircraftTypeCode>320</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT175M</Duration>\n        </FlightSegment>\n        <FlightSegment>\n          <SegmentID>SEG1_2</SegmentID>\n          <Departure>\n            <AirportCode>DOH</AirportCode>\n            <Date>2027-05-10</Date>\n            <Time>16:18:00</Time>\n          </Departure>\n          <Arrival>\n            <AirportCode>BOM</AirportCode>\n            <Date>2027-05-10</Date>\n            <Time>21:08:00</Time>\n          </Arrival>\n          <MarketingCarrierAirlineID>LH</MarketingCarrierAirlineID>\n          <MarketingCarrierName>Lufthansa</MarketingCarrierName>\n          <MarketingFlightNumber>LH634</MarketingFlightNumber>\n          <OperatingCarrierAirlineID>LH</OperatingCarrierAirlineID>\n          <AircraftTypeCode>738</AircraftTypeCode>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <CabinTypeName>Economy</CabinTypeName>\n          <BookingClassCode>K</BookingClassCode>\n          <Duration>PT290M</Duration>\n        </FlightSegment>\n      </FlightSegmentList>\n      <FareList>\n        <Fare>\n          <FareCode>YL327</FareCode>\n          <FareBasisCode>YL327</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>false</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n        <Fare>\n          <FareCode>YW620</FareCode>\n          <FareBasisCode>YW620</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>false</Refundable>\n            <Changeable>false</Changeable>\n          </FareDetail>\n        </Fare>\n        <Fare>\n          <FareCode>YV524</FareCode>\n          <FareBasisCode>YV524</FareBasisCode>\n          <FareTypeCode>PUB</FareTypeCode>\n          <FareDetail>\n            <Refundable>false</Refundable>\n            <Changeable>true</Changeable>\n          </FareDetail>\n        </Fare>\n      </FareList>\n      <cur:CurParameter>\n        <cur:CurCode>USD</cur:CurCode>\n        <cur:DecimalsAllowedNumber>2</cur:DecimalsAllowedNumber>\n      </cur:CurParameter>\n    </DataLists>\n    <Offers>\n      <Offer>\n        <OfferID>IT3</OfferID>\n        <OwnerCode>AA</OwnerCode>\n        <ValidatingCarrierCode>AA</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG3\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_DXBBOM_2027-05-10</OriginDestRef>\n          <FareRef>YL327</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT3-OI1</OfferItemID>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <SeatsAvailable>1</SeatsAvailable>\n          <ItineraryDuration>PT280M</ItineraryDuration>\n          <Connections>0</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">465.77</TotalAmount>\n            <BaseAmount CurCode=\"USD\">372.62</BaseAmount>\n            <TaxAmount CurCode=\"USD\">93.15</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n      <Offer>\n        <OfferID>IT2</OfferID>\n        <OwnerCode>EK</OwnerCode>\n        <ValidatingCarrierCode>EK</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG2_1\"/>\n            <FlightSegmentReference ref=\"SEG2_3\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_DXBBOM_2027-05-10</OriginDestRef>\n          <FareRef>YW620</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT2-OI1</OfferItemID>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <SeatsAvailable>8</SeatsAvailable>\n          <ItineraryDuration>PT644M</ItineraryDuration>\n          <Connections>1</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">558.85</TotalAmount>\n            <BaseAmount CurCode=\"USD\">447.08</BaseAmount>\n            <TaxAmount CurCode=\"USD\">111.77</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n      <Offer>\n        <OfferID>IT1</OfferID>\n        <OwnerCode>LH</OwnerCode>\n        <ValidatingCarrierCode>LH</ValidatingCarrierCode>\n        <Associations>\n          <FlightRefs>\n            <FlightSegmentReference ref=\"SEG1_1\"/>\n            <FlightSegmentReference ref=\"SEG1_2\"/>\n          </FlightRefs>\n          <OriginDestRef>PJ_DXBBOM_2027-05-10</OriginDestRef>\n          <FareRef>YV524</FareRef>\n        </Associations>\n        <OfferItem>\n          <OfferItemID>IT1-OI1</OfferItemID>\n          <CabinTypeCode>Y</CabinTypeCode>\n          <SeatsAvailable>6</SeatsAvailable>\n          <ItineraryDuration>PT623M</ItineraryDuration>\n          <Connections>1</Connections>\n          <Price>\n            <TotalAmount CurCode=\"USD\">671.33</TotalAmount>\n            <BaseAmount CurCode=\"USD\">537.06</BaseAmount>\n            <TaxAmount CurCode=\"USD\">134.27</TaxAmount>\n          </Price>\n        </OfferItem>\n      </Offer>\n    </Offers>\n  </Response>\n</iata:AirShoppingRS>\n"
+  },
+  "expected": [
+    {
+      "label": "LHR-JFK-C-2ADT",
+      "score": 0.8012,
+      "confidence": "high",
+      "weak": false,
+      "low_confidence": false,
+      "available_weight": 26.0,
+      "reasons": [
+        {
+          "signal": "routes",
+          "score": 1.0,
+          "weight": 6.0,
+          "explanation": "1 shared route(s) of 1"
+        },
+        {
+          "signal": "trip_type",
+          "score": 1.0,
+          "weight": 2.5,
+          "explanation": "both one-way"
+        },
+        {
+          "signal": "structure",
+          "score": 1.0,
+          "weight": 1.0,
+          "explanation": "52 shared node paths of 52"
+        },
+        {
+          "signal": "dates",
+          "score": 1.0,
+          "weight": 3.0,
+          "explanation": "2 shared date(s) of 2"
+        },
+        {
+          "signal": "pax",
+          "score": 1.0,
+          "weight": 2.0,
+          "explanation": "{'ADT': 2} vs {'ADT': 2}"
+        },
+        {
+          "signal": "carriers",
+          "score": 0.0,
+          "weight": 2.0,
+          "explanation": "none shared"
+        },
+        {
+          "signal": "entities",
+          "score": 0.48,
+          "weight": 1.5,
+          "explanation": "entity mix overlap 48%"
+        },
+        {
+          "signal": "airports",
+          "score": 0.6,
+          "weight": 2.5,
+          "explanation": "3 shared airport(s)"
+        },
+        {
+          "signal": "hops",
+          "score": 0.1111,
+          "weight": 1.0,
+          "explanation": "1 shared connection(s)"
+        },
+        {
+          "signal": "cabins",
+          "score": 1.0,
+          "weight": 2.0,
+          "explanation": "['Business', 'C']"
+        },
+        {
+          "signal": "currency",
+          "score": 1.0,
+          "weight": 1.5,
+          "explanation": "USD vs USD"
+        },
+        {
+          "signal": "offer_count",
+          "score": 0.5,
+          "weight": 1.0,
+          "explanation": "4 vs 2 offer(s)"
+        }
+      ],
+      "fingerprint": {
+        "label": "LHR-JFK-C-2ADT",
+        "root": "AirShoppingRS",
+        "trip_type": "one-way",
+        "routes": [
+          "LHR->JFK"
+        ],
+        "hops": [
+          "FCO->JFK",
+          "LHR->FCO",
+          "LHR->JFK"
+        ],
+        "airports": [
+          "FCO",
+          "JFK",
+          "LHR"
+        ],
+        "pax": {
+          "ADT": 2
+        },
+        "cabins": [
+          "Business",
+          "C"
+        ],
+        "carriers": [
+          "LH",
+          "QR"
+        ],
+        "currency": "USD",
+        "dates": [
+          "2027-03-15",
+          "2027-03-16"
+        ],
+        "struct_count": 52,
+        "entity_counts": {
+          "Pax": 2,
+          "OriginDest": 1,
+          "FlightSegment": 3,
+          "Fare": 2,
+          "Offer": 2,
+          "OfferItem": 2
+        },
+        "offer_count": 2
+      }
+    },
+    {
+      "label": "LHR-JFK-Y-1ADT",
+      "score": 0.6862,
+      "confidence": "medium",
+      "weak": false,
+      "low_confidence": false,
+      "available_weight": 26.0,
+      "reasons": [
+        {
+          "signal": "routes",
+          "score": 1.0,
+          "weight": 6.0,
+          "explanation": "1 shared route(s) of 1"
+        },
+        {
+          "signal": "trip_type",
+          "score": 1.0,
+          "weight": 2.5,
+          "explanation": "both one-way"
+        },
+        {
+          "signal": "structure",
+          "score": 1.0,
+          "weight": 1.0,
+          "explanation": "52 shared node paths of 52"
+        },
+        {
+          "signal": "dates",
+          "score": 1.0,
+          "weight": 3.0,
+          "explanation": "2 shared date(s) of 2"
+        },
+        {
+          "signal": "pax",
+          "score": 0.5,
+          "weight": 2.0,
+          "explanation": "{'ADT': 2} vs {'ADT': 1}"
+        },
+        {
+          "signal": "carriers",
+          "score": 0.0,
+          "weight": 2.0,
+          "explanation": "none shared"
+        },
+        {
+          "signal": "entities",
+          "score": 0.68,
+          "weight": 1.5,
+          "explanation": "entity mix overlap 68%"
+        },
+        {
+          "signal": "airports",
+          "score": 0.4286,
+          "weight": 2.5,
+          "explanation": "3 shared airport(s)"
+        },
+        {
+          "signal": "hops",
+          "score": 0.0,
+          "weight": 1.0,
+          "explanation": "0 shared connection(s)"
+        },
+        {
+          "signal": "cabins",
+          "score": 0.0,
+          "weight": 2.0,
+          "explanation": "none shared"
+        },
+        {
+          "signal": "currency",
+          "score": 1.0,
+          "weight": 1.5,
+          "explanation": "USD vs USD"
+        },
+        {
+          "signal": "offer_count",
+          "score": 0.75,
+          "weight": 1.0,
+          "explanation": "4 vs 3 offer(s)"
+        }
+      ],
+      "fingerprint": {
+        "label": "LHR-JFK-Y-1ADT",
+        "root": "AirShoppingRS",
+        "trip_type": "one-way",
+        "routes": [
+          "LHR->JFK"
+        ],
+        "hops": [
+          "AMS->JFK",
+          "FCO->JFK",
+          "LGW->FCO",
+          "LHR->AMS",
+          "LHR->JFK",
+          "LHR->LGW"
+        ],
+        "airports": [
+          "AMS",
+          "FCO",
+          "JFK",
+          "LGW",
+          "LHR"
+        ],
+        "pax": {
+          "ADT": 1
+        },
+        "cabins": [
+          "Economy",
+          "Y"
+        ],
+        "carriers": [
+          "BA",
+          "QR"
+        ],
+        "currency": "USD",
+        "dates": [
+          "2027-03-15",
+          "2027-03-16"
+        ],
+        "struct_count": 52,
+        "entity_counts": {
+          "Pax": 1,
+          "OriginDest": 1,
+          "FlightSegment": 6,
+          "Fare": 3,
+          "Offer": 3,
+          "OfferItem": 3
+        },
+        "offer_count": 3
+      }
+    },
+    {
+      "label": "DXB-BOM-Y-1ADT",
+      "score": 0.25,
+      "confidence": "low",
+      "weak": true,
+      "low_confidence": false,
+      "available_weight": 26.0,
+      "reasons": [
+        {
+          "signal": "routes",
+          "score": 0.0,
+          "weight": 6.0,
+          "explanation": "0 shared route(s) of 2"
+        },
+        {
+          "signal": "trip_type",
+          "score": 1.0,
+          "weight": 2.5,
+          "explanation": "both one-way"
+        },
+        {
+          "signal": "structure",
+          "score": 1.0,
+          "weight": 1.0,
+          "explanation": "52 shared node paths of 52"
+        },
+        {
+          "signal": "dates",
+          "score": 0.0,
+          "weight": 3.0,
+          "explanation": "0 shared date(s) of 4"
+        },
+        {
+          "signal": "pax",
+          "score": 0.5,
+          "weight": 2.0,
+          "explanation": "{'ADT': 2} vs {'ADT': 1}"
+        },
+        {
+          "signal": "carriers",
+          "score": 0.25,
+          "weight": 2.0,
+          "explanation": "['EK']"
+        },
+        {
+          "signal": "entities",
+          "score": 0.64,
+          "weight": 1.5,
+          "explanation": "entity mix overlap 64%"
+        },
+        {
+          "signal": "airports",
+          "score": 0.0,
+          "weight": 2.5,
+          "explanation": "0 shared airport(s)"
+        },
+        {
+          "signal": "hops",
+          "score": 0.0,
+          "weight": 1.0,
+          "explanation": "0 shared connection(s)"
+        },
+        {
+          "signal": "cabins",
+          "score": 0.0,
+          "weight": 2.0,
+          "explanation": "none shared"
+        },
+        {
+          "signal": "currency",
+          "score": 1.0,
+          "weight": 1.5,
+          "explanation": "USD vs USD"
+        },
+        {
+          "signal": "offer_count",
+          "score": 0.75,
+          "weight": 1.0,
+          "explanation": "4 vs 3 offer(s)"
+        },
+        {
+          "signal": "decisive_mismatch",
+          "score": 0.0,
+          "weight": 0.0,
+          "explanation": "no shared route or airport, so this is treated as a different market regardless of schema agreement"
+        }
+      ],
+      "fingerprint": {
+        "label": "DXB-BOM-Y-1ADT",
+        "root": "AirShoppingRS",
+        "trip_type": "one-way",
+        "routes": [
+          "DXB->BOM"
+        ],
+        "hops": [
+          "DOH->BOM",
+          "DXB->BOM",
+          "DXB->DOH"
+        ],
+        "airports": [
+          "BOM",
+          "DOH",
+          "DXB"
+        ],
+        "pax": {
+          "ADT": 1
+        },
+        "cabins": [
+          "Economy",
+          "Y"
+        ],
+        "carriers": [
+          "AA",
+          "EK",
+          "LH"
+        ],
+        "currency": "USD",
+        "dates": [
+          "2027-05-10",
+          "2027-05-11"
+        ],
+        "struct_count": 52,
+        "entity_counts": {
+          "Pax": 1,
+          "OriginDest": 1,
+          "FlightSegment": 5,
+          "Fare": 3,
+          "Offer": 3,
+          "OfferItem": 3
+        },
+        "offer_count": 3
+      }
+    }
+  ]
+}

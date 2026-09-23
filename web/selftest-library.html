@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Multi-baseline self-test</title>
+<style>
+  body { background:#0f1115; color:#e6e9ef; font:13px/1.6 ui-monospace,Menlo,monospace; padding:24px; }
+  h1 { font-size:15px; }
+  .pass { color:#4ade80; } .fail { color:#ff6b6b; }
+  pre { background:#0d1016; border:1px solid #2b303b; padding:12px; border-radius:8px; overflow:auto; }
+</style>
+</head>
+<body>
+<h1>Multi-baseline self-test — real IndexedDB, real DOM</h1>
+<p>Exercises the baseline library (IndexedDB) and nearest-match selection.</p>
+<div id="result">running…</div>
+<pre id="detail"></pre>
+
+<script src="ndc-diff.js"></script>
+<script src="ndc-report.js"></script>
+<script src="ndc-trip.js"></script>
+<script src="ndc-similarity.js"></script>
+<script src="ndc-store.js"></script>
+<script>
+(async function () {
+  var out = document.getElementById("result");
+  var detail = document.getElementById("detail");
+  var lines = [];
+  var failures = 0;
+
+  function check(name, actual, want) {
+    var a = JSON.stringify(actual), w = JSON.stringify(want);
+    if (a === w) lines.push("PASS  " + name);
+    else { failures++; lines.push("FAIL  " + name + "\n  expected " + w + "\n  actual   " + a); }
+  }
+  function truthy(name, actual) { check(name, Boolean(actual), true); }
+
+  var deps = {
+    ENTITY_KEYS: NDC.ENTITY_KEYS,
+    flatten: NDC.flatten,
+    tripShapeFromRs: function (rootEl) { return NDCTrip.tripShapeFromRs(rootEl); },
+  };
+
+  function rs(o, d, cabin, pax) {
+    var origins = "<OriginDest><OriginCode>" + o + "</OriginCode><DestCode>" + d +
+      "</DestCode><DepartureDate>2027-03-15</DepartureDate>" +
+      (cabin ? "<CabinTypeName>" + cabin + "</CabinTypeName>" : "") + "</OriginDest>";
+    var paxXml = pax || '<Pax><PaxID>ADT1</PaxID><PTC>ADT</PTC></Pax>';
+    // A couple of offers so entity data exists.
+    var offers = "";
+    for (var i = 1; i <= 3; i++) {
+      offers += '<Offer OfferID="IT' + i + '"><OfferItem OfferItemID="IT' + i + '-OI1">' +
+        '<CabinTypeCode>' + (cabin === "Business" || cabin === "C" ? "C" : "Y") + "</CabinTypeCode>" +
+        '<Price><TotalAmount CurCode="USD">' + (500 + i * 10) + "</TotalAmount></Price>" +
+        "</OfferItem></Offer>";
+    }
+    return '<AirShoppingRS Version="21.3"><Response><DataLists>' +
+      "<OriginDestList>" + origins + "</OriginDestList>" +
+      "<PaxList>" + paxXml + "</PaxList>" +
+      '<CurParameter><CurCode>USD</CurCode></CurParameter>' +
+      "</DataLists><Offers>" + offers + "</Offers></Response></AirShoppingRS>";
+  }
+
+  try {
+    // --- storage round trip through real IndexedDB ------------------------
+    var available = await NDCStore.isAvailable();
+    truthy("IndexedDB is available", available);
+
+    await NDCStore.clear();
+    check("library starts empty", await NDCStore.count(), 0);
+
+    var docs = {
+      "lhr-jfk-a.xml": rs("LHR", "JFK", "Economy"),
+      "lhr-jfk-b.xml": rs("LHR", "JFK", "Business",
+        '<Pax><PaxID>ADT1</PaxID><PTC>ADT</PTC></Pax><Pax><PaxID>ADT2</PaxID><PTC>ADT</PTC></Pax>'),
+      "dxb-bom.xml": rs("DXB", "BOM", "Economy"),
+      "jnb-gru.xml": rs("JNB", "GRU", "Economy"),
+    };
+    for (var name in docs) await NDCStore.put(name, name, docs[name]);
+
+    check("all baselines stored", await NDCStore.count(), 4);
+    var stored = await NDCStore.list();
+    check("listing returns every baseline", stored.length, 4);
+    truthy("stored text round-trips intact",
+      (await NDCStore.get("jnb-gru.xml")).text === docs["jnb-gru.xml"]);
+
+    await NDCStore.remove("dxb-bom.xml");
+    check("remove works", await NDCStore.count(), 3);
+
+    // --- nearest-match selection over the stored library ------------------
+    var library = {};
+    for (var s of await NDCStore.list()) {
+      library[s.name] = { root: NDC.parseXml(s.text) };
+    }
+
+    var newLhrJfk = NDC.parseXml(rs("LHR", "JFK", "Business",
+      '<Pax><PaxID>ADT1</PaxID><PTC>ADT</PTC></Pax><Pax><PaxID>ADT2</PaxID><PTC>ADT</PTC></Pax>'));
+    var ranked = NDCSimilarity.rankCandidates(newLhrJfk, library, "new.xml", deps);
+
+    check("nearest match picks the same route and cabin", ranked[0].label, "lhr-jfk-b.xml");
+    truthy("nearest match scores well", ranked[0].score > 0.6);
+    check("nearest match is not flagged weak", ranked[0].weak, false);
+    truthy("ranking is ordered",
+      ranked.every((r, i) => i === 0 || ranked[i - 1].score >= r.score));
+
+    // A different market must not be chosen, and must be capped low.
+    var newJnbGru = NDC.parseXml(rs("JNB", "GRU", "Economy"));
+    var ranked2 = NDCSimilarity.rankCandidates(newJnbGru, library, "new2.xml", deps);
+    check("different market picks its own baseline", ranked2[0].label, "jnb-gru.xml");
+    var wrong = ranked2.find((r) => r.label === "lhr-jfk-a.xml");
+    truthy("unrelated market is capped low", wrong.score <= NDCSimilarity.MISMATCH_CAP + 1e-9);
+
+    // --- explanations are usable ------------------------------------------
+    var text = NDCSimilarity.explainMatch(ranked[0]);
+    truthy("explanation names routes", text.indexOf("routes") !== -1);
+    truthy("explanation states a score", text.indexOf("score") !== -1);
+    truthy("chosen match has reasons", ranked[0].reasons.length > 4);
+
+    // A weak match must be reported as such rather than silently accepted.
+    var emptyish = NDC.parseXml(
+      '<AirShoppingRS Version="21.3"><Response><DataLists>' +
+      '<OriginDestList><OriginDest><OriginCode>AAA</OriginCode><DestCode>BBB</DestCode>' +
+      "<DepartureDate>2027-03-15</DepartureDate></OriginDest></OriginDestList>" +
+      "<CurParameter><CurCode>USD</CurCode></CurParameter></DataLists></Response></AirShoppingRS>"
+    );
+    var weakRanked = NDCSimilarity.rankCandidates(emptyish, library, "weak.xml", deps);
+    truthy("unmatched request is flagged weak", weakRanked[0].weak);
+
+    // --- cleanup ----------------------------------------------------------
+    await NDCStore.clear();
+    check("library clears", await NDCStore.count(), 0);
+  } catch (err) {
+    failures++;
+    lines.push("EXCEPTION: " + (err && err.message ? err.message : err));
+  }
+
+  out.innerHTML = failures === 0
+    ? '<span class="pass">ALL CHECKS PASSED (real IndexedDB)</span>'
+    : '<span class="fail">' + failures + ' CHECK(S) FAILED</span>';
+  detail.textContent = lines.join("\n");
+})();
+</script>
+</body>
+</html>

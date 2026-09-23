@@ -374,6 +374,86 @@ check(
   true
 );
 
+// --- similarity parity with the Python implementation --------------------- //
+const NDCSimilarity = require("./ndc-similarity.js");
+
+const simCases = JSON.parse(
+  readFileSync(join(here, "expected", "similarity_cases.json"), "utf8")
+);
+
+// The JS engine needs the diff and trip modules it delegates to.
+const simDeps = {
+  ENTITY_KEYS: NDC.ENTITY_KEYS,
+  flatten: NDC.flatten,
+  tripShapeFromRs: (rootEl) => NDCTrip.tripShapeFromRs(rootEl),
+};
+
+const ranked = NDCSimilarity.rankCandidates(
+  NDC.parseXml(simCases.new),
+  Object.fromEntries(
+    Object.entries(simCases.baselines).map(([label, xml]) => [
+      label,
+      { root: NDC.parseXml(xml) },
+    ])
+  ),
+  "new",
+  simDeps
+);
+
+check(
+  "similarity ranks the same baselines in the same order",
+  ranked.map((r) => r.label),
+  simCases.expected.map((r) => r.label)
+);
+
+// Scores must agree with the reference, which stores them rounded to 4dp.
+let scoreMismatch = null;
+ranked.forEach((result, i) => {
+  const want = simCases.expected[i].score;
+  const mine = Math.round(result.score * 1e4) / 1e4;
+  if (Math.abs(mine - want) > 1e-9) {
+    scoreMismatch = `${result.label}: js ${mine} vs py ${want}`;
+  }
+});
+check("similarity scores match Python", scoreMismatch, null);
+
+check(
+  "similarity confidence matches Python",
+  ranked.map((r) => r.confidence),
+  simCases.expected.map((r) => r.confidence)
+);
+
+// The reference serialises route pairs as "A->B", so compare that form.
+check(
+  "similarity routes are recognised identically",
+  NDCSimilarity.fingerprint(NDC.parseXml(simCases.new), "new", simDeps).routes.map(
+    (pair) => pair.join("->")
+  ),
+  simCases.expected[0].fingerprint.routes
+);
+
+// The decisive-mismatch cap must survive the port: a different market cannot be
+// rescued by identical schema.
+const otherMarket = ranked.find((r) => r.label === "DXB-BOM-Y-1ADT");
+check("wrong market is capped", otherMarket.score <= NDCSimilarity.MISMATCH_CAP + 1e-9, true);
+check(
+  "wrong market explains itself as a decisive mismatch",
+  otherMarket.reasons.some((r) => r.signal === "decisive_mismatch"),
+  true
+);
+
+// A signal absent on one side must be skipped, not treated as disagreement.
+const bareResult = NDCSimilarity.scoreMatch(
+  { label: "bare", routes: [], hops: [], airports: [], pax: {}, cabins: [], carriers: [],
+    currency: "", dates: [], structs: {}, entity_counts: {}, offer_count: 0, trip_type: "unknown" },
+  NDCSimilarity.fingerprint(NDC.parseXml(simCases.new), "new", simDeps)
+);
+check(
+  "missing signal is skipped rather than penalised",
+  bareResult.reasons.some((r) => r.signal === "routes"),
+  false
+);
+
 console.log(
   failures === 0
     ? "\nAll checks passed: the JS engine matches the Python reference.\n"
